@@ -820,6 +820,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 g_bridge->dispatchScriptEvent(appRoot.get(), "hotkey", eventObj);
             }
             return 0;
+        case WM_CLOSE: {
+            if (g_bridge) {
+                auto eventObj = Value::Object();
+                eventObj->setProperty("type", Value::Str("close"));
+                eventObj->setProperty("preventDefault", Value::Native([eventObj](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+                    eventObj->setProperty("defaultPrevented", Value::Bool(true));
+                    return Value::Undefined();
+                }));
+                g_bridge->dispatchScriptEvent(appRoot.get(), "close", eventObj);
+                auto prevented = eventObj->getProperty("defaultPrevented");
+                if (prevented && prevented->isTruthy()) {
+                    return 0; // Prevent window close
+                }
+            }
+            return DefWindowProc(hwnd, msg, wp, lp);
         }
 
         case WM_DESTROY:

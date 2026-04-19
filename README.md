@@ -264,8 +264,9 @@ The framework binds robustly to both generic OS hooks and specific visual intera
     Injected with positional boundaries `e.clientX`, `e.clientY`, and the bounding object `e.target`.
 *   **Global Event: Control** `focus`, `blur`
     Maps activation routines across specific tree nodes.
-*   **Global Event: Status** `load`, `resize`
-    Standard workflow hooks allowing robust bootstrapping arrays.
+*   **Global Event: Status** `load`, `resize`, `close`
+    Standard workflow hooks allowing robust bootstrapping or shutdown arrays.
+    **Note on `close`**: The `close` event is **synchronous**. If you call `e.preventDefault()`, the Windows shutdown interrupt is halted and the app remains open!
 *   **Global Event: OS Integrations** `drop`
     Injected upon OS Drag-and-Drop operations tracking target filepaths inside `e.file`.
 *   **Custom Dispatch Hooks**: `new CustomEvent("name", { detail: object })`
