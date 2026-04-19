@@ -218,7 +218,10 @@ Interpreter* g_interp = nullptr;
 ScriptBridge* g_bridge = nullptr;
 
 // ---- Debug logging helper ----
+bool g_sysLogEnabled = true;
+
 void sysLog(const std::string& msg) {
+    if (!g_sysLogEnabled) return;
     printf("[DOM] %s\n", msg.c_str());
     OutputDebugStringA(("[DOM] " + msg + "\n").c_str());
     FILE* log = fopen("sys_log.txt", "a");

@@ -59,6 +59,8 @@ public:
 
         // ---- sys.log ----
         sysObj->setProperty("log", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            extern bool g_sysLogEnabled;
+            if (!g_sysLogEnabled) return Value::Undefined();
             std::string msg;
             for (size_t i = 0; i < args.size(); i++) {
                 if (i > 0) msg += " ";
@@ -74,6 +76,12 @@ public:
             FILE* log = fopen("sys_log.txt", "a");
             if (log) { fprintf(log, "[DOM] %s\n", msg.c_str()); fclose(log); }
             return Value::Undefined();
+        }));
+
+        sysObj->setProperty("setLogEnabled", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            extern bool g_sysLogEnabled;
+            if (!args.empty()) g_sysLogEnabled = args[0]->isTruthy();
+            return Value::Bool(g_sysLogEnabled);
         }));
 
         // ---- sys.time ----

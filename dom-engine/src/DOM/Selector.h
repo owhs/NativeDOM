@@ -117,8 +117,8 @@ private:
             if (i >= s.size()) break;
 
             // Check for combinator
-            if (s[i] == '>') {
-                pendingCombinator = '>';
+            if (s[i] == '>' || s[i] == '+' || s[i] == '~') {
+                pendingCombinator = s[i];
                 i++;
                 while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) i++;
                 if (i >= s.size()) break;
@@ -302,6 +302,31 @@ private:
                             auto sub = matchSegments(child, segments, segIdx + 1, searchShadow);
                             results.insert(results.end(), sub.begin(), sub.end());
                         }
+                    }
+                } else if (nextSeg.combinator == '+') {
+                    std::vector<std::shared_ptr<Element>> siblings;
+                    if (candidate->parent) siblings = candidate->parent->children;
+                    else if (candidate->shadowHost) siblings = candidate->shadowHost->shadowChildren;
+                    
+                    for (size_t i = 0; i < siblings.size(); i++) {
+                        if (siblings[i].get() == candidate.get() && i + 1 < siblings.size()) {
+                            auto sub = matchSegments(siblings[i+1], segments, segIdx + 1, searchShadow);
+                            results.insert(results.end(), sub.begin(), sub.end());
+                            break;
+                        }
+                    }
+                } else if (nextSeg.combinator == '~') {
+                    std::vector<std::shared_ptr<Element>> siblings;
+                    if (candidate->parent) siblings = candidate->parent->children;
+                    else if (candidate->shadowHost) siblings = candidate->shadowHost->shadowChildren;
+                    
+                    bool foundSelf = false;
+                    for (size_t i = 0; i < siblings.size(); i++) {
+                        if (foundSelf) {
+                            auto sub = matchSegments(siblings[i], segments, segIdx + 1, searchShadow);
+                            results.insert(results.end(), sub.begin(), sub.end());
+                        }
+                        if (siblings[i].get() == candidate.get()) foundSelf = true;
                     }
                 } else {
                     // Descendant: search all descendants

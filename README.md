@@ -107,15 +107,29 @@ main.cpp
 - `el.addEventListener(type, callback)` / `el.removeEventListener(type)`
 - `el.getBoundingRect()` / `el.show()` / `el.hide()` / `el.focus()` / `el.blur()`
 
+### HTML Properties & Inline States
+All CSS properties can be specified inline as HTML attributes (e.g. `<Button border-radius="12" />`).
+You can also apply inline state-based properties by prefixing the attribute name with the state pseudo-identifier:
+- `<Button hover:bg="#ff0000" focused:border="#00ff00" active:opacity="0.5" />`
+
 ### Platform
-- `sys.log(msg)` — logs to console, OutputDebugString, and sys_log.txt
+- `sys.log(msg)` — logs to console, OutputDebugString, and sys_log.txt.
+- `sys.setLogEnabled(bool)` — toggle engine logging globally (e.g. `sys.setLogEnabled(false)`).
 - `sys.window.resize(w, h)` / `.move(x, y)` / `.center()`
-- `sys.window.minimize()` / `.maximize()` / `.restore()` / `.close()`
-- `sys.window.setTitle(title)` / `.setOpacity(0-1)` / `.setAlwaysOnTop(bool)`
+- `sys.window.minimize()` / `.maximize()` / `.restore()` / `.close()` / `.setFullscreen(bool)`
+- `sys.window.setTitle(title)` / `.setOpacity(0-1)` / `.setAlwaysOnTop(bool)` / `.setIcon(filepath)`
 - `sys.window.getSize()` / `.getPosition()`
-- `sys.screen.getInfo()` / `sys.screen.getDPI()`
-- `sys.dllCall(dll, func, [args])` — call any DLL function
-- `sys.sendMessage(hwnd, msg, wp, lp)` / `sys.findWindow(title)`
+- `sys.window.getActiveProcessName()` — get the name of the executable that currently has focus.
+- `sys.window.findWindow(title)` — returns the raw HWND long ID for a window matching the exact title.
+- `sys.window.registerHotkey(id, "CTRL+ALT+T")` — register a global Windows hotkey. Listens via the `"hotkey"` event on the document root!
+- `sys.window.unregisterHotkey(id)`
+- `sys.sendMessage(hwnd, msg, wp, lp)` — dispatch a direct raw WIN32 message.
+- `sys.screen.getInfo()` — returns structure containing full active `width`, `height`, hardware monitor count, and Windows `workArea` boundaries. 
+- `sys.screen.getDPI()` / `sys.screen.getMousePosition()`
+- `sys.screen.getMonitorAt(x, y)`
+- `sys.keyboard.hook(callback)` / `sys.keyboard.unhook()` — sets up global LowLevel keyboard interception hooks.
+- `sys.clipboard.getText()` / `.setText(string)` / `.getFormat(id)` / `.setFormat(id, buffer)` / `.clear()`
+- `sys.dllCall(dll, func, [args])` — call any DLL function.
 
 ### Async
 - `setTimeout(fn, ms)` / `setInterval(fn, ms)`
@@ -124,20 +138,29 @@ main.cpp
 - `fetch(url, { method, body, headers })` → Promise
 
 ### Events
-- Mouse: `click`, `mousedown`, `mouseup`, `mousemove`, `mouseenter`, `mouseleave`, `contextmenu`, `wheel`
+- Mouse: `click`, `dblclick`, `mousedown`, `mouseup`, `mousemove`, `mouseenter`, `mouseleave`, `contextmenu`, `wheel`
 - Keyboard: `keydown`, `keypress`, `keyup`
 - Focus: `focus`, `blur`
+- Global: `hotkey` (see `sys.window.registerHotkey`)
 - Lifecycle: `load`, `resize`
 - Custom: `document.dispatchEvent(CustomEvent("name", { detail: data }))`
+- I/O: `drop` (provides `e.file` for dragged/dropped files)
 
-### CSS Selectors
-- Tag: `Text`, `Button`
-- ID: `#my-id`
-- Class: `.my-class`
+### CSS Features & Selectors
+*NativeDOM parses selectors top-to-bottom natively.*
+- Elements: `Text`, `Button`
+- Identifiers: `#my-id`
+- Classes: `.my-class`
 - Attributes: `[attr]`, `[attr="val"]`, `[attr*="val"]`, `[attr^="val"]`, `[attr$="val"]`
-- Pseudo: `:hover`, `:focused`, `:active`, `:first-child`, `:last-child`, `:nth-child(n)`, `:not(sel)`, `:has(sel)`
-- Combinators: `parent > child`, `ancestor descendant`
-- Chained: `Button.primary#submit[disabled]:hover`
+- Pseudo-States: `:hover`, `:focused`, `:active`, `:first-child`, `:last-child`, `:nth-child(n)`, `:not(sel)`, `:has(sel)`
+- Combinators: descendant `parent child`, direct child `parent > child`, adjacent sibling `+`, general sibling `~`.
+- Commas/Multiple: `header, main > .container`
+- Wildcards: `*` or `parent > *`
+- Host Injection (Experimental Component Spec): `:host([cond]) selector` allows components to internally detect properties passed to their encapsulating host shadow boundaries.
+- Variables: `--var-name: val;` inside elements can be referenced via `var(--var-name, default)`. 
+- Attribute Interpolation: Native `attr(custom-property, default)` binds HTML attribute text values into styles.
+- Live Math: Native `calc(100% - 20)` mathematical interpolation (supports `+, -, *, /`).
+- Color Blends: Native `color-mix(#color1, #color2, percentage)` interpolation mixing.
 
 ## Debugging
 

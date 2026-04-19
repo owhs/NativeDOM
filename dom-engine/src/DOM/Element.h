@@ -144,6 +144,33 @@ public:
             }
         }
         
+        // Resolve attr() references
+        p = 0;
+        loopGuard = 0;
+        while ((p = result.find("attr(", p)) != std::string::npos && ++loopGuard < 20) {
+            size_t endP = result.find(')', p);
+            if (endP == std::string::npos) break;
+            std::string attrName = result.substr(p + 5, endP - p - 5);
+            std::string defaultVal = "";
+            size_t comma = attrName.find(',');
+            if (comma != std::string::npos) {
+                defaultVal = attrName.substr(comma + 1);
+                attrName = attrName.substr(0, comma);
+                while(!defaultVal.empty() && (defaultVal.front() == ' ' || defaultVal.front() == '"' || defaultVal.front() == '\'')) defaultVal.erase(defaultVal.begin());
+                while(!defaultVal.empty() && (defaultVal.back() == ' ' || defaultVal.back() == '"' || defaultVal.back() == '\'')) defaultVal.pop_back();
+            }
+            while(!attrName.empty() && isspace((unsigned char)attrName.back())) attrName.pop_back();
+            while(!attrName.empty() && isspace((unsigned char)attrName.front())) attrName.erase(attrName.begin());
+
+            std::string resolved = defaultVal;
+            for (auto& kv : this->props) {
+                if (kv.first == attrName) { resolved = kv.second; break; }
+            }
+            
+            result.replace(p, endP - p + 1, resolved);
+            // Don't advance p if we just injected a substitution that might need further evaluating
+        }
+        
         // Resolve calc() expressions
         p = 0;
         loopGuard = 0;
