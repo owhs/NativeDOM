@@ -820,6 +820,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 g_bridge->dispatchScriptEvent(appRoot.get(), "hotkey", eventObj);
             }
             return 0;
+        }
         case WM_CLOSE: {
             if (g_bridge) {
                 auto eventObj = Value::Object();
@@ -1103,9 +1104,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR lpCmdLine, int) {
     
     RegisterClassEx(&wc);
 
-    DWORD style = WS_OVERLAPPEDWINDOW;
+    DWORD style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
     if (appRoot->Get("frameless") == "true" && appRoot->Get("system-shadow") == "false") {
-        style = WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
+        style = WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU | WS_CLIPCHILDREN;
     }
     if (appRoot->Get("resizable") == "false") {
         style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);

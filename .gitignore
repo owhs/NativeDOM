@@ -4,3 +4,12 @@ test*
 *.exe
 bundled_*.h
 .vscode/
+*.py
+sdk/
+bin/
+*.exp
+*.lib
+*.obj
+*.pdb
+*.dll
+EBWebView/

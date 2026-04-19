@@ -6,18 +6,40 @@
 
 class DLLBridge {
 public:
+    static uint64_t SafeCall(FARPROC proc, uint64_t* args, bool& outException) {
+        typedef uint64_t(__stdcall* FnPtr)(uint64_t, uint64_t, uint64_t, uint64_t,
+                                           uint64_t, uint64_t, uint64_t, uint64_t);
+        uint64_t result = 0;
+        outException = false;
+        __try {
+            result = ((FnPtr)proc)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
+        } __except(EXCEPTION_EXECUTE_HANDLER) {
+            outException = true;
+        }
+        return result;
+    }
+
+    static bool SafeInitExtension(FARPROC proc, void** ctxArgs) {
+        bool exceptionThrown = false;
+        __try {
+            typedef void(__stdcall* InitFn)(void**);
+            ((InitFn)proc)(ctxArgs);
+        } __except(EXCEPTION_EXECUTE_HANDLER) {
+            exceptionThrown = true;
+        }
+        return !exceptionThrown;
+    }
+
     // Generic DLL call with up to 8 parameters
-    // sys.dllCall("User32.dll", "MessageBoxA", [0, "Hello", "Title", 0])
     static ValuePtr Call(const std::string& dllName, const std::string& funcName,
                          const std::vector<ValuePtr>& args) {
         HMODULE hMod = LoadLibraryA(dllName.c_str());
-        if (!hMod) return Value::Null();
+        if (!hMod) return Value::Str("Error: DLL not found.");
 
         FARPROC proc = GetProcAddress(hMod, funcName.c_str());
-        if (!proc) return Value::Null();
+        if (!proc) return Value::Str("Error: Function not found.");
 
         // Convert args to native parameters
-        // We support up to 8 args (covers most Win32 APIs)
         uint64_t nativeArgs[8] = { 0 };
         std::vector<std::string> stringKeepAlive; // prevent dangling pointers
 
@@ -27,7 +49,6 @@ public:
                 stringKeepAlive.push_back(arg->str);
                 nativeArgs[i] = (uint64_t)stringKeepAlive.back().c_str();
             } else if (arg->type == ValueType::Number) {
-                // Check if it looks like a pointer/handle (>= 0 and integer)
                 nativeArgs[i] = (uint64_t)(int64_t)arg->number;
             } else if (arg->type == ValueType::Boolean) {
                 nativeArgs[i] = arg->boolean ? 1 : 0;
@@ -36,12 +57,12 @@ public:
             }
         }
 
-        // Call via function pointer cast (x64 calling convention)
-        typedef uint64_t(__stdcall* FnPtr)(uint64_t, uint64_t, uint64_t, uint64_t,
-                                           uint64_t, uint64_t, uint64_t, uint64_t);
-        uint64_t result = ((FnPtr)proc)(
-            nativeArgs[0], nativeArgs[1], nativeArgs[2], nativeArgs[3],
-            nativeArgs[4], nativeArgs[5], nativeArgs[6], nativeArgs[7]);
+        bool exceptionThrown = false;
+        uint64_t result = SafeCall(proc, nativeArgs, exceptionThrown);
+
+        if (exceptionThrown) {
+            return Value::Str("Error: DLL Exception thrown during execution.");
+        }
 
         return Value::Num((double)result);
     }

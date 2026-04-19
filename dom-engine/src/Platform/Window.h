@@ -555,6 +555,26 @@ public:
             return DLLBridge::Call(dllName, funcName, callArgs);
         }));
 
+        // ---- sys.loadExtension ----
+        sysObj->setProperty("loadExtension", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Bool(false);
+            std::string dllName = args[0]->toString();
+            HMODULE hMod = LoadLibraryA(dllName.c_str());
+            if (!hMod) return Value::Str("Error: Could not load extension DLL");
+
+            FARPROC initProc = GetProcAddress(hMod, "NativeDOM_Init");
+            if (!initProc) return Value::Str("Error: NativeDOM_Init export not found in DLL");
+
+            extern struct NVGcontext* g_nvg;
+            void* ctxArgs[3] = { g_hwnd, g_nvg, &interp };
+
+            if (!DLLBridge::SafeInitExtension(initProc, ctxArgs)) {
+                return Value::Str("Error: Exception caught during NativeDOM_Init execution");
+            }
+
+            return Value::Bool(true);
+        }));
+
         // ---- sys.event (runtime event data placeholder) ----
         auto eventObj = Value::Object();
         eventObj->setProperty("keyCode", Value::Num(0));

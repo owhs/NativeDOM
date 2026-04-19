@@ -26,7 +26,9 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
 *   `sys.loadScript(filepath: string, asNewProcess: bool=false)`
     Hot-loads and parses an external `.dom` context map directly into memory. If `asNewProcess` is true, the file spins up completely isolated inside a cloned `dom.exe` child fork.
 *   `sys.dllCall(dll: string, func: string, args: Array) -> auto`
-    Internal bridge for unsafe Foreign Function Interfaces. Invokes arbitrary dynamically resolved Windows `.dll` logic mapping basic JS strings/numbers to C ABI targets.
+    Internal bridge for unsafe Foreign Function Interfaces. Invokes arbitrary dynamically resolved Windows `.dll` logic mapping basic JS strings/numbers to C ABI targets. **Protected by native Structured Exception Handling (SEH)**, meaning if the external DLL completely crashes, NativeDOM gracefully catches the hardware exception and returns an error string instead of crashing your UI! This makes calling external crypto/compression methods incredibly robust and fail-safe.
+*   `sys.loadExtension(dllPath: string) -> bool`
+    Advanced engine feature for loading comprehensive C++ extensions (e.g. video player tools, networking layers, WebView2 embeds, or cryptography suites). Loads the DLL, probes for a `NativeDOM_Init` export, and hands it the NativeDOM execution pointers safely.
 *   `sys.sendMessage(hwnd: number, msg: number, wParam: number, lParam: number)`
     The lowest-level OS IPC primitive. Dispatches raw Windows UI messages securely to internal or external process queues.
 *   `sys.findWindow(title: string) -> number`
@@ -106,3 +108,44 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
     Wipes the clipboard buffer totally clean preventing accidental multi-read memory leaks.
 *   `sys.clipboard.getFormat(id) -> Array<number>`, `sys.clipboard.setFormat(id, buffer)`
     Binary API wrapper. Permits direct format abstraction (mapping numerical integers like `CF_BITMAP`) across arbitrary bytes!
+
+---
+
+## C++ Extensions API
+
+For high-performance or complex libraries (e.g., video player toolkits, fully threaded Websocket servers, or embedding Edge WebView2 instances directly into the app), standard `sys.dllCall` integer-passing is insufficient. 
+
+To solve this, NativeDOM allows you to author complete **Native Extensions** that plug raw C/C++ logic seamlessly into the NativeDOM OpenGL and OS environment!
+
+### Authoring an Extension
+Create a standard Windows DLL and export the exact signature ` NativeDOM_Init(void** ctxArgs)`. NativeDOM securely passes an array of its internal core memory pointers. 
+
+**Example Extension (`my_plugin.dll`)**:
+```cpp
+#include <windows.h>
+
+// NanoVG struct forward declaration if you intend to draw to the hardware DOM context
+struct NVGcontext;
+class Interpreter;
+
+extern "C" __declspec(dllexport) void __stdcall NativeDOM_Init(void** ctxArgs) {
+    // Standard extraction of NativeDOM runtime pointers:
+    HWND windowHandle = (HWND)ctxArgs[0];
+    NVGcontext* nvg = (NVGcontext*)ctxArgs[1];
+    Interpreter* interp = (Interpreter*)ctxArgs[2];
+
+    // DO ANYTHING HERE:
+    // - Subclass 'windowHandle' to embed an active WebView2 HWND or Video HWND over the DOM.
+    // - Register new Javascript objects via the Interpreter directly.
+    // - Boot up background threads for high-speed Async networking hooks (WebSockets/TCP).
+    // - Cast NanoVG commands using the 'nvg' pointer to render completely custom geometry natively inside the engine's standard redraw loop!
+}
+```
+
+### Loading in Javascript
+Because NativeDOM wraps the memory boundary in hardware SEH (Structured Exception Handling), you don't need to worry about typos crashing your wrapper application.
+```javascript
+let success = sys.loadExtension("plugins/my_plugin.dll");
+if (!success) { sys.log("Graceful fail catch: Extension crashed or missing!"); }
+```
+This architecture makes NativeDOM endlessly adaptable to **any scenario or use case**.

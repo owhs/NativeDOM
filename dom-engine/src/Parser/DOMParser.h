@@ -175,6 +175,8 @@ public:
 
     // Parse from string content (useful for embedded resources)
     static std::shared_ptr<Element> ParseContent(std::string content, const std::string& filepath = "") {
+        extern void sysLog(const std::string&);
+
         // ---- Handle imports ----
         size_t importP = 0;
         while ((importP = content.find("<import ", importP)) != std::string::npos) {
@@ -200,6 +202,7 @@ public:
                     if (!foundComp) {
                         auto comp = ParseDOM(dir + src);
                         if (comp) componentRegistry.push_back({as, comp});
+                        else sysLog("[Parser] Error: Failed to resolve import '" + src + "' into component <" + as + "> inside " + filepath);
                     }
                 }
             }
@@ -225,18 +228,19 @@ public:
                         bool foundComp = false;
                         for (auto& cr : componentRegistry) { if (cr.first == as) { foundComp = true; break; } }
                         if (!foundComp) {
-                            // Recursively parse the component content so it gets exactly behavior as disk import
                             auto comp = ParseContent(compContent, filepath);
                             if (comp) componentRegistry.push_back({as, comp});
+                            else sysLog("[Parser] Error: Failed to compile inline <component as=\"" + as + "\"> sequence inside " + filepath);
 
-                            // Mask out the entire <component> block to prevent CSS/shadow leaking to main UI
-                            size_t blockEnd = closingTag + 12; // length of </component>
+                            size_t blockEnd = closingTag + 12;
                             for (size_t i = compP; i < blockEnd; i++) {
                                 if (content[i] != '\n' && content[i] != '\r') {
                                     content[i] = ' ';
                                 }
                             }
                         }
+                    } else {
+                        sysLog("[Parser] Error: Missing </component> closing block for <component as=\"" + as + "\"> inside " + filepath);
                     }
                 }
             }
@@ -252,7 +256,10 @@ public:
             size_t sStart = content.find("<script>", scriptPos);
             if (sStart == std::string::npos) break;
             size_t sEnd = content.find("</script>", sStart);
-            if (sEnd == std::string::npos) break;
+            if (sEnd == std::string::npos) {
+                sysLog("[Parser] Error: Missing </script> tag closing block in " + filepath);
+                break;
+            }
             globalScripts += "\n" + content.substr(sStart + 8, sEnd - sStart - 8);
             scriptPos = sEnd + 9;
         }
@@ -260,10 +267,16 @@ public:
         // ---- Parse <ui> tree ----
         size_t uiStart = content.find("<ui");
         size_t uiEnd = content.find("</ui>");
-        if (uiStart == std::string::npos || uiEnd == std::string::npos) return nullptr;
+        if (uiStart == std::string::npos || uiEnd == std::string::npos) {
+            if (uiStart == std::string::npos) sysLog("[Parser] Critical fail: Missing opening <ui> root node block in " + filepath);
+            else sysLog("[Parser] Critical fail: Missing closing </ui> root node block in " + filepath);
+            return nullptr;
+        }
         std::string ui = content.substr(uiStart, uiEnd - uiStart + 5);
 
-        return parseUI(ui);
+        auto parsed = parseUI(ui);
+        if (!parsed) sysLog("[Parser] Critical fail: Internal node tree expansion returned explicitly null in " + filepath + " -> verify proper HTML-like closure semantics!");
+        return parsed;
     }
 
 private:
