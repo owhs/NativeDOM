@@ -97,54 +97,80 @@ main.cpp
 
 ## Scripting API
 
-### DOM
-- `document.querySelector(selector)` / `document.querySelectorAll(selector)`
-- `document.shadowDomSelector(selector)` / `document.shadowDomSelectorAll(selector)`
-- `document.getElementById(id)`
-- `el.getAttribute(key)` / `el.setAttribute(key, value)`
-- `el.classList.add(cls)` / `.remove(cls)` / `.toggle(cls)` / `.contains(cls)`
-- `el.querySelector(selector)` (scoped)
-- `el.addEventListener(type, callback)` / `el.removeEventListener(type)`
-- `el.getBoundingRect()` / `el.show()` / `el.hide()` / `el.focus()` / `el.blur()`
+### DOM Element Methods
+- Navigation: `document.querySelector(selector)` / `document.querySelectorAll(selector)`
+- Navigation: `document.shadowDomSelector(selector)` / `document.shadowDomSelectorAll(selector)`
+- Navigation: `document.getElementById(id)`
+- Creation: `document.createElement(tag)`
+- Element Navigation: `el.querySelector(selector)`, `el.querySelectorAll(selector)`, `el.shadowDomSelector(selector)`
+- Relationships: `el.parentElement`, `el.children`, `el.appendChild(child)`
+- Attributes: `el.getAttribute(key)` / `el.setAttribute(key, value)`
+- Classes: `el.classList.add(cls)` / `.remove(cls)` / `.toggle(cls)` / `.contains(cls)`
+- Text: `el.textContent` (property) / `el.innerText` (property)
+- Geometry: `el.getBoundingRect()` returns `{x, y, width, height}`
+- State: `el.show()` / `el.hide()` / `el.focus()` / `el.blur()`
 
 ### HTML Properties & Inline States
 All CSS properties can be specified inline as HTML attributes (e.g. `<Button border-radius="12" />`).
 You can also apply inline state-based properties by prefixing the attribute name with the state pseudo-identifier:
 - `<Button hover:bg="#ff0000" focused:border="#00ff00" active:opacity="0.5" />`
 
-### Platform
+### System (sys.*)
 - `sys.log(msg)` — logs to console, OutputDebugString, and sys_log.txt.
 - `sys.setLogEnabled(bool)` — toggle engine logging globally (e.g. `sys.setLogEnabled(false)`).
-- `sys.window.resize(w, h)` / `.move(x, y)` / `.center()`
-- `sys.window.minimize()` / `.maximize()` / `.restore()` / `.close()` / `.setFullscreen(bool)`
-- `sys.window.setTitle(title)` / `.setOpacity(0-1)` / `.setAlwaysOnTop(bool)` / `.setIcon(filepath)`
-- `sys.window.getSize()` / `.getPosition()`
-- `sys.window.getActiveProcessName()` — get the name of the executable that currently has focus.
-- `sys.window.findWindow(title)` — returns the raw HWND long ID for a window matching the exact title.
-- `sys.window.registerHotkey(id, "CTRL+ALT+T")` — register a global Windows hotkey. Listens via the `"hotkey"` event on the document root!
+- `sys.time()` — returns `GetTickCount64()` (milliseconds since system boot).
+- `sys.exec(cmd, [hidden])` — run a shell process. Returns the process ID.
+- `sys.readText(filepath)` — reads file entirely into a UTF-8 string.
+- `sys.writeText(filepath, data)` — writes string data to a file.
+- `sys.loadScript(filepath, [asNewProcess])` — loads and parses an external `.dom` file dynamically into the application.
+- `sys.dllCall(dll, func, [args])` — raw FFI bridge to call standard DLL procedures.
+- `sys.sendMessage(hwnd, msg, wp, lp)` — dispatch a direct raw WIN32 system message.
+- `sys.findWindow(title)` — returns the raw HWND long ID for a window matching the exact title.
+- `sys.getHwnd()` — returns the HWND long ID of the underlying application window.
+
+### Window (sys.window.*)
+- `sys.window.resize(w, h)` / `sys.window.move(x, y)` / `sys.window.center()`
+- `sys.window.hide()` / `sys.window.show()`
+- `sys.window.minimize()` / `sys.window.maximize()` / `sys.window.restore()` / `sys.window.close()`
+- `sys.window.setFullscreen(bool)` / `sys.window.isMaximized()` -> bool
+- `sys.window.setTitle(title)` / `sys.window.setOpacity(0-1)` / `sys.window.setAlwaysOnTop(bool)`
+- `sys.window.setIcon(filepath)` -> accepts `.ico` paths.
+- `sys.window.getSize()` -> `{width, height}` / `sys.window.getPosition()` -> `{x, y}`
+- `sys.window.getActiveProcessName()` — grabs internal focus from Windows Desktop.
+- `sys.window.registerHotkey(id, "key")` — register a global Windows hotkey.
 - `sys.window.unregisterHotkey(id)`
-- `sys.sendMessage(hwnd, msg, wp, lp)` — dispatch a direct raw WIN32 message.
-- `sys.screen.getInfo()` — returns structure containing full active `width`, `height`, hardware monitor count, and Windows `workArea` boundaries. 
-- `sys.screen.getDPI()` / `sys.screen.getMousePosition()`
-- `sys.screen.getMonitorAt(x, y)`
-- `sys.keyboard.hook(callback)` / `sys.keyboard.unhook()` — sets up global LowLevel keyboard interception hooks.
-- `sys.clipboard.getText()` / `.setText(string)` / `.getFormat(id)` / `.setFormat(id, buffer)` / `.clear()`
-- `sys.dllCall(dll, func, [args])` — call any DLL function.
+  ```javascript
+  // Example: Listening for a global hotkey
+  sys.window.registerHotkey(1, "CTRL+ALT+T");
+  document.addEventListener("hotkey", (e) => {
+      if (e.id === 1) { sys.log("Hotkey pressed!"); }
+  });
+  ```
+
+### Screen & Inputs (sys.screen.*, sys.keyboard.*, sys.clipboard.*)
+- `sys.screen.getInfo()` — returns structure containing full active `width`, `height`, hardware monitor count, and Windows `workArea` `{x,y,width,height}` boundaries. 
+- `sys.screen.getDPI()` — system scale.
+- `sys.screen.getMousePosition()` -> `{x, y}`
+- `sys.screen.getMonitorAt(x, y)` -> `{name, x, y, width, height, isPrimary}`
+- `sys.keyboard.hook(callback)` / `sys.keyboard.unhook()` — sets up global LowLevel keyboard interception hooks. The callback receives a keyEvent object. Return `true` to block the key input globally!
+- `sys.clipboard.getText()` / `sys.clipboard.setText(string)` / `sys.clipboard.clear()`
+- `sys.clipboard.getFormat(id)` / `sys.clipboard.setFormat(id, buffer)` — binary clipboard format interactions.
 
 ### Async
 - `setTimeout(fn, ms)` / `setInterval(fn, ms)`
 - `clearTimeout(id)` / `clearInterval(id)`
 - `new Promise((resolve, reject) => ...)` / `.then()` / `.catch()`
-- `fetch(url, { method, body, headers })` → Promise
+- `fetch(url, { method, body, headers })` → Promise that resolves `{ ok, status, body, text(), json() }`
 
 ### Events
-- Mouse: `click`, `dblclick`, `mousedown`, `mouseup`, `mousemove`, `mouseenter`, `mouseleave`, `contextmenu`, `wheel`
-- Keyboard: `keydown`, `keypress`, `keyup`
-- Focus: `focus`, `blur`
-- Global: `hotkey` (see `sys.window.registerHotkey`)
-- Lifecycle: `load`, `resize`
-- Custom: `document.dispatchEvent(CustomEvent("name", { detail: data }))`
-- I/O: `drop` (provides `e.file` for dragged/dropped files)
+- **Document Level Listeners**: `document.addEventListener(type, cb)`, `document.removeEventListener(type)`
+- **Element Listeners**: `el.addEventListener(type, cb)`, `el.removeEventListener(type)`
+- **Dispatchers**: `document.dispatchEvent(event)`, `el.dispatchEvent(event)`
+- **Event Controls**: `e.preventDefault()`, `e.stopPropagation()`, `e.stopImmediatePropagation()`
+- **Global Events**: `hotkey` (provides `e.id`, `e.modifiers`, `e.vkCode`)
+- **Keyboard Events**: `e.keyCode`, `e.key`
+- **Mouse Events**: `e.clientX`, `e.clientY`, `e.target`
+- Custom: `new CustomEvent("name", { detail: data })`
 
 ### CSS Features & Selectors
 *NativeDOM parses selectors top-to-bottom natively.*
