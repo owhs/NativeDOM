@@ -61,7 +61,8 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
 *   `sys.window.getActiveProcessName() -> string`
     Bypasses generic limits to inject into the `GetForegroundWindow` memory space, extracting the exact `.exe` name currently managing input!
 *   `sys.window.registerHotkey(id: number, keyStr: string)`
-    Sets up a global DWM key hook sequence. This captures keyboard vectors even while NativeDOM is minimized!
+    Sets up a global DWM key hook sequence. This captures keyboard vectors even while NativeDOM is minimized! 
+    *Note: The `id` is an arbitrary integer you provide. When the OS detects the hotkey, it dispatches the `hotkey` event with this exact `id` so you know which key combination was pressed.*
     ```javascript
     // Example: Listening for a global hotkey
     sys.window.registerHotkey(1, "CTRL+ALT+T");

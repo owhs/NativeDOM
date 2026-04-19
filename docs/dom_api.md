@@ -75,6 +75,31 @@ NativeDOM implements a flex-like auto-layout engine for structuring applications
 
 ---
 
+## Root `<ui>` Properties
+
+The master `<ui>` tag inside a `.dom` file accepts specific attributes that hook directly into the Win32 OS Window frame creation loop natively:
+
+*   `title="<string>"`
+    Sets the OS window title.
+*   `frameless="true"`
+    Strips the `WS_CAPTION` and standard borders, granting pixel-perfect ownership of the entire client rect (DWM boundaries).
+*   `resizable="false"`
+    Removes the `WS_THICKFRAME` preventing users from dragging the edges.
+*   `maximizable="false"`
+    Removes the `WS_MAXIMIZEBOX` button from the system menu.
+*   `transparent="true"`
+    Triggers `WS_EX_LAYERED`, allowing UI elements to float directly on the desktop with alpha-blending!
+*   `system-shadow="true|false"`
+    Forces or suppresses the Windows 11 DWM drop-shadow around frameless bounds.
+*   `centered="true"` or `position="center"`
+    Automatically centers the window exactly in the middle of the primary monitor on boot.
+*   `position-x="<number>"`, `position-y="<number>"`
+    Explicitly forces the startup OS coordinates.
+*   `bg="<hex-color>"`
+    Defines the low-level clear-color for the OpenGL/DWM swap chain to prevent white flickering before the tree renders.
+
+---
+
 ## HTML Properties & Inline States
 
 All CSS properties can be set inline via direct HTML attributes.
