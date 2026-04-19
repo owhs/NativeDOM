@@ -15,3 +15,8 @@ bin/
 EBWebView/
 *.png
 *.jpg
+node_modules/
+out/
+build/
+*.vsix
+

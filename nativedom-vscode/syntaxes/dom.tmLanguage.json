@@ -1,0 +1,605 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "NativeDOM",
+  "scopeName": "source.dom",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#import-tag" },
+    { "include": "#style-block" },
+    { "include": "#script-block" },
+    { "include": "#component-block" },
+    { "include": "#ui-tag" },
+    { "include": "#self-closing-tag" },
+    { "include": "#open-tag" },
+    { "include": "#close-tag" },
+    { "include": "#text-content" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.dom",
+      "begin": "<!--",
+      "end": "-->",
+      "captures": {
+        "0": { "name": "punctuation.definition.comment.dom" }
+      }
+    },
+
+    "import-tag": {
+      "name": "meta.tag.import.dom",
+      "begin": "(<)(import)\\b",
+      "end": "/?>",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "keyword.control.import.dom" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#import-src-attr" },
+        { "include": "#import-as-attr" },
+        { "include": "#tag-attributes" }
+      ]
+    },
+
+    "import-src-attr": {
+      "match": "(src)(=)(\"([^\"]*)\")",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.src.dom" },
+        "2": { "name": "punctuation.separator.key-value.dom" },
+        "3": { "name": "string.quoted.double.dom" },
+        "4": { "name": "markup.underline.link.dom" }
+      }
+    },
+
+    "import-as-attr": {
+      "match": "(as)(=)(\"([^\"]*)\")",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.as.dom" },
+        "2": { "name": "punctuation.separator.key-value.dom" },
+        "3": { "name": "string.quoted.double.dom" },
+        "4": { "name": "entity.name.type.component.dom" }
+      }
+    },
+
+    "style-block": {
+      "name": "meta.embedded.block.css.dom",
+      "begin": "(<)(style)(>)",
+      "end": "(</)(style)(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.style.dom" },
+        "3": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.style.dom" },
+        "3": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#css-content" }
+      ]
+    },
+
+    "css-content": {
+      "patterns": [
+        { "include": "#css-comment" },
+        { "include": "#css-rule" }
+      ]
+    },
+
+    "css-comment": {
+      "name": "comment.block.css.dom",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+
+    "css-rule": {
+      "name": "meta.rule.css.dom",
+      "begin": "(?=[^\\s/{}])",
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#css-selector" },
+        { "include": "#css-declaration-block" }
+      ]
+    },
+
+    "css-selector": {
+      "name": "meta.selector.css.dom",
+      "begin": "(?=[^\\s/{])",
+      "end": "(?=\\{)",
+      "patterns": [
+        { "include": "#css-comment" },
+        {
+          "name": "entity.other.attribute-name.pseudo-class.css.dom",
+          "match": ":(hover|focused|active|first-child|last-child|nth-child|not|has|host)\\b"
+        },
+        {
+          "name": "entity.name.tag.custom-element.dom",
+          "match": "\\b(ui|View|div|Text|Button|TextInput|Image|WebView|Card|TitleBar|titlebar)\\b"
+        },
+        {
+          "name": "entity.other.attribute-name.id.css.dom",
+          "match": "#[\\w-]+"
+        },
+        {
+          "name": "entity.other.attribute-name.class.css.dom",
+          "match": "\\.[\\w-]+"
+        },
+        {
+          "name": "keyword.operator.combinator.css.dom",
+          "match": "[>+~]"
+        },
+        {
+          "name": "keyword.operator.wildcard.css.dom",
+          "match": "\\*"
+        },
+        {
+          "name": "punctuation.separator.comma.css.dom",
+          "match": ","
+        },
+        {
+          "name": "meta.attribute-selector.css.dom",
+          "begin": "\\[",
+          "end": "\\]",
+          "patterns": [
+            {
+              "name": "entity.other.attribute-name.css.dom",
+              "match": "[\\w-]+"
+            },
+            {
+              "name": "keyword.operator.css.dom",
+              "match": "[*^$~|]?="
+            },
+            {
+              "name": "string.quoted.double.css.dom",
+              "begin": "\"",
+              "end": "\""
+            },
+            {
+              "name": "string.quoted.single.css.dom",
+              "begin": "'",
+              "end": "'"
+            }
+          ]
+        },
+        {
+          "name": "punctuation.definition.pseudo-args.begin.css.dom",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.definition.pseudo-args.end.css.dom",
+          "match": "\\)"
+        }
+      ]
+    },
+
+    "css-declaration-block": {
+      "name": "meta.declaration-block.css.dom",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.property-list.begin.css.dom" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.property-list.end.css.dom" }
+      },
+      "patterns": [
+        { "include": "#css-comment" },
+        { "include": "#css-declaration" }
+      ]
+    },
+
+    "css-declaration": {
+      "name": "meta.property.css.dom",
+      "begin": "(?=[\\w-])",
+      "end": ";|(?=\\})",
+      "patterns": [
+        {
+          "name": "support.type.property-name.custom.css.dom",
+          "match": "^\\s*(--[\\w-]+)(?=\\s*:)",
+          "captures": {
+            "1": { "name": "variable.css.dom" }
+          }
+        },
+        {
+          "name": "support.type.property-name.dom",
+          "match": "\\b(bg|color|width|height|x|y|right|bottom|min-width|max-width|min-height|max-height|border|border-width|border-radius|font-size|font-family|font-weight|text-align|vertical-align|padding|padding-left|padding-right|padding-top|padding-bottom|margin|opacity|cursor|display|overflow|z-index|transition|pointer-events|events|white-space|layout|gap|justify|align|drag|position|position-x|position-y|title|frameless|resizable|maximizable|transparent|system-shadow|centered)\\b"
+        },
+        {
+          "name": "punctuation.separator.key-value.css.dom",
+          "match": ":"
+        },
+        { "include": "#css-value" }
+      ]
+    },
+
+    "css-value": {
+      "patterns": [
+        {
+          "name": "constant.other.color.hex.css.dom",
+          "match": "#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b"
+        },
+        {
+          "name": "constant.numeric.css.dom",
+          "match": "-?\\d+\\.?\\d*(%|px|ms|s)?\\b"
+        },
+        {
+          "name": "support.function.var.css.dom",
+          "begin": "\\b(var)(\\()",
+          "end": "\\)",
+          "beginCaptures": {
+            "1": { "name": "support.function.css.dom" },
+            "2": { "name": "punctuation.section.function.begin.css.dom" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.section.function.end.css.dom" }
+          },
+          "patterns": [
+            {
+              "name": "variable.css.dom",
+              "match": "--[\\w-]+"
+            },
+            {
+              "name": "punctuation.separator.comma.css.dom",
+              "match": ","
+            },
+            { "include": "#css-value" }
+          ]
+        },
+        {
+          "name": "support.function.calc.css.dom",
+          "begin": "\\b(calc|color-mix|attr)(\\()",
+          "end": "\\)",
+          "beginCaptures": {
+            "1": { "name": "support.function.css.dom" },
+            "2": { "name": "punctuation.section.function.begin.css.dom" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.section.function.end.css.dom" }
+          },
+          "patterns": [
+            { "include": "#css-value" },
+            {
+              "name": "keyword.operator.arithmetic.css.dom",
+              "match": "[+\\-*/]"
+            }
+          ]
+        },
+        {
+          "name": "support.constant.css.dom",
+          "match": "\\b(none|auto|absolute|row|col|start|center|end|right|left|top|bottom|space-between|hidden|visible|pointer|text|default|ease|linear|bold|normal|nowrap|true|false|transparent)\\b"
+        },
+        {
+          "name": "keyword.other.important.css.dom",
+          "match": "!important"
+        },
+        {
+          "name": "string.quoted.double.css.dom",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.css.dom",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+
+    "script-block": {
+      "name": "meta.embedded.block.javascript.dom",
+      "begin": "(<)(script)(>)",
+      "end": "(</)(script)(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.script.dom" },
+        "3": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.script.dom" },
+        "3": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#js-content" }
+      ]
+    },
+
+    "js-content": {
+      "patterns": [
+        { "include": "#js-line-comment" },
+        { "include": "#js-block-comment" },
+        { "include": "#js-string-template" },
+        { "include": "#js-string-double" },
+        { "include": "#js-string-single" },
+        { "include": "#js-regex" },
+        { "include": "#js-keywords" },
+        { "include": "#js-nativedom-api" },
+        { "include": "#js-dom-api" },
+        { "include": "#js-constants" },
+        { "include": "#js-numbers" },
+        { "include": "#js-function-declaration" },
+        { "include": "#js-arrow-function" },
+        { "include": "#js-operators" },
+        { "include": "#js-punctuation" }
+      ]
+    },
+
+    "js-line-comment": {
+      "name": "comment.line.double-slash.js.dom",
+      "match": "//.*$"
+    },
+    "js-block-comment": {
+      "name": "comment.block.js.dom",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    "js-string-template": {
+      "name": "string.template.js.dom",
+      "begin": "`",
+      "end": "`",
+      "patterns": [
+        {
+          "name": "meta.template.expression.js.dom",
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "beginCaptures": { "0": { "name": "punctuation.definition.template-expression.begin.js.dom" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.template-expression.end.js.dom" } },
+          "patterns": [
+            { "include": "#js-content" }
+          ]
+        },
+        {
+          "name": "constant.character.escape.js.dom",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "js-string-double": {
+      "name": "string.quoted.double.js.dom",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.js.dom", "match": "\\\\." }
+      ]
+    },
+    "js-string-single": {
+      "name": "string.quoted.single.js.dom",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        { "name": "constant.character.escape.js.dom", "match": "\\\\." }
+      ]
+    },
+    "js-regex": {
+      "name": "string.regexp.js.dom",
+      "begin": "(?<=[=(:,;!&|?])\\s*/(?![/*])",
+      "end": "/[gimsuy]*",
+      "patterns": [
+        { "name": "constant.character.escape.js.dom", "match": "\\\\." }
+      ]
+    },
+    "js-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.js.dom",
+          "match": "\\b(if|else|for|while|do|switch|case|break|continue|return|throw|try|catch|finally|new|delete|typeof|instanceof|in|of|default)\\b"
+        },
+        {
+          "name": "storage.type.js.dom",
+          "match": "\\b(var|let|const|function)\\b"
+        },
+        {
+          "name": "constant.language.js.dom",
+          "match": "\\b(true|false|null|undefined|NaN|Infinity|this|window)\\b"
+        },
+        {
+          "name": "support.class.builtin.js.dom",
+          "match": "\\b(Array|Object|String|Number|Math|JSON|Promise|Date|RegExp|Error|CustomEvent)\\b"
+        }
+      ]
+    },
+    "js-nativedom-api": {
+      "patterns": [
+        {
+          "name": "support.class.nativedom.js.dom",
+          "match": "\\b(sys|document|console)\\b"
+        },
+        {
+          "name": "support.function.nativedom.sys.js.dom",
+          "match": "(?<=sys\\.)(log|time|exec|readText|writeText|loadScript|dllCall|dllCallString|loadExtension|sendMessage|findWindow|getHwnd|screenshot|getPixelColor|setLogEnabled)\\b"
+        },
+        {
+          "name": "support.function.nativedom.window.js.dom",
+          "match": "(?<=sys\\.window\\.)(resize|move|center|hide|show|minimize|maximize|restore|close|setFullscreen|isMaximized|setTitle|setOpacity|setAlwaysOnTop|setIcon|getSize|getPosition|getActiveProcessName|registerHotkey|unregisterHotkey)\\b"
+        },
+        {
+          "name": "support.function.nativedom.screen.js.dom",
+          "match": "(?<=sys\\.screen\\.)(getInfo|getDPI|getMousePosition|getMonitorAt)\\b"
+        },
+        {
+          "name": "support.function.nativedom.keyboard.js.dom",
+          "match": "(?<=sys\\.keyboard\\.)(hook|unhook)\\b"
+        },
+        {
+          "name": "support.function.nativedom.clipboard.js.dom",
+          "match": "(?<=sys\\.clipboard\\.)(getText|setText|clear|getFormat|setFormat)\\b"
+        },
+        {
+          "name": "support.function.nativedom.dom.js.dom",
+          "match": "(?<=document\\.)(querySelector|querySelectorAll|getElementById|createElement|addEventListener|removeEventListener|dispatchEvent|shadowDomSelector|shadowDomSelectorAll)\\b"
+        },
+        {
+          "name": "support.function.nativedom.element.js.dom",
+          "match": "\\.(querySelector|querySelectorAll|getElementById|shadowDomSelector|shadowDomSelectorAll|getAttribute|setAttribute|classList|appendChild|getBoundingRect|addEventListener|removeEventListener|dispatchEvent|show|hide|focus|blur|parentElement|children|textContent|innerText)\\b"
+        },
+        {
+          "name": "support.function.async.js.dom",
+          "match": "\\b(setTimeout|setInterval|clearTimeout|clearInterval|fetch)\\b"
+        }
+      ]
+    },
+    "js-dom-api": {
+      "patterns": [
+        {
+          "name": "support.function.method.js.dom",
+          "match": "\\.(add|remove|toggle|contains|then|catch|push|pop|shift|unshift|splice|map|filter|reduce|find|findIndex|some|every|forEach|join|slice|concat|indexOf|includes|sort|reverse|keys|values|entries|assign|hasOwnProperty|stringify|parse|fromCharCode|toUpperCase|toLowerCase|trim|padStart|split|replace|replaceAll|repeat|charAt|charCodeAt|startsWith|endsWith|match|substring|toFixed|toString|flat|log)\\b"
+        }
+      ]
+    },
+    "js-constants": {
+      "name": "constant.language.math.js.dom",
+      "match": "\\bMath\\.(PI|E)\\b"
+    },
+    "js-numbers": {
+      "name": "constant.numeric.js.dom",
+      "match": "\\b-?\\d+\\.?\\d*([eE][+-]?\\d+)?\\b"
+    },
+    "js-function-declaration": {
+      "match": "\\b(function)\\s+([\\w$]+)\\s*\\(",
+      "captures": {
+        "1": { "name": "storage.type.function.js.dom" },
+        "2": { "name": "entity.name.function.js.dom" }
+      }
+    },
+    "js-arrow-function": {
+      "name": "storage.type.function.arrow.js.dom",
+      "match": "=>"
+    },
+    "js-operators": {
+      "name": "keyword.operator.js.dom",
+      "match": "===?|!==?|<=?|>=?|&&|\\|\\||\\+\\+|--|\\+=|-=|\\*=|/=|%=|\\?|:"
+    },
+    "js-punctuation": {
+      "patterns": [
+        { "name": "punctuation.definition.block.js.dom", "match": "[{}]" },
+        { "name": "punctuation.definition.parameters.js.dom", "match": "[()]" },
+        { "name": "punctuation.accessor.js.dom", "match": "\\." },
+        { "name": "punctuation.separator.comma.js.dom", "match": "," },
+        { "name": "punctuation.terminator.statement.js.dom", "match": ";" }
+      ]
+    },
+
+    "component-block": {
+      "name": "meta.tag.component.dom",
+      "begin": "(<)(component)\\b",
+      "end": "(</)(component)(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "keyword.control.component.dom" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "keyword.control.component.dom" },
+        "3": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" },
+        { "include": "$self" }
+      ]
+    },
+
+    "ui-tag": {
+      "name": "meta.tag.ui.dom",
+      "begin": "(<)(ui)\\b",
+      "end": ">",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.ui.dom" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" }
+      ]
+    },
+
+    "self-closing-tag": {
+      "name": "meta.tag.self-closing.dom",
+      "begin": "(<)([A-Z][\\w-]*|[a-z][\\w-]*)\\b(?=[^>]*/\\s*>)",
+      "end": "/>",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.dom" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" }
+      ]
+    },
+
+    "open-tag": {
+      "name": "meta.tag.open.dom",
+      "begin": "(<)([A-Z][\\w-]*|[a-z][\\w-]*)\\b",
+      "end": ">",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.dom" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.tag.end.dom" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" }
+      ]
+    },
+
+    "close-tag": {
+      "name": "meta.tag.close.dom",
+      "match": "(</)(\\w[\\w-]*)(>)",
+      "captures": {
+        "1": { "name": "punctuation.definition.tag.begin.dom" },
+        "2": { "name": "entity.name.tag.dom" },
+        "3": { "name": "punctuation.definition.tag.end.dom" }
+      }
+    },
+
+    "tag-attributes": {
+      "patterns": [
+        { "include": "#attribute-event-handler" },
+        { "include": "#attribute-pseudo-state" },
+        { "include": "#attribute-standard" }
+      ]
+    },
+
+    "attribute-event-handler": {
+      "match": "(on[A-Z]\\w*|onClick|onLoad|onKey)(=)(\"([^\"]*)\")",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.event.dom" },
+        "2": { "name": "punctuation.separator.key-value.dom" },
+        "3": { "name": "string.quoted.double.dom" },
+        "4": { "name": "meta.embedded.line.js.dom" }
+      }
+    },
+
+    "attribute-pseudo-state": {
+      "match": "(hover|focused|active)(:)(\\w[\\w-]*)(=)(\"([^\"]*)\")",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.pseudo-state.dom" },
+        "2": { "name": "punctuation.separator.pseudo.dom" },
+        "3": { "name": "support.type.property-name.dom" },
+        "4": { "name": "punctuation.separator.key-value.dom" },
+        "5": { "name": "string.quoted.double.dom" },
+        "6": { "name": "constant.other.color.dom" }
+      }
+    },
+
+    "attribute-standard": {
+      "match": "([\\w-]+(?:::[\\w-]+)?)(=)(\"([^\"]*)\")",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.dom" },
+        "2": { "name": "punctuation.separator.key-value.dom" },
+        "3": { "name": "string.quoted.double.dom" }
+      }
+    },
+
+    "text-content": {
+      "name": "text.dom",
+      "match": "[^<]+"
+    }
+  }
+}

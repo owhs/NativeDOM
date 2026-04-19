@@ -1,0 +1,134 @@
+{
+  "name": "nativedom",
+  "displayName": "NativeDOM",
+  "description": "Comprehensive language support for NativeDOM .dom files — syntax highlighting, IntelliSense, snippets, hover docs, and diagnostics for the NativeDOM HTML/CSS/JS hybrid format.",
+  "version": "1.0.0",
+  "publisher": "nativedom",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters",
+    "Formatters"
+  ],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/nativedom/nativedom" },
+  "activationEvents": [
+    "onLanguage:dom"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "dom",
+        "aliases": [
+          "NativeDOM",
+          "dom",
+          "DOM"
+        ],
+        "extensions": [
+          ".dom"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/dom-file-light.svg",
+          "dark": "./icons/dom-file-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "dom",
+        "scopeName": "source.dom",
+        "path": "./syntaxes/dom.tmLanguage.json",
+        "embeddedLanguages": {
+          "source.js": "javascript",
+          "source.css.dom": "css"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "dom",
+        "path": "./snippets/dom.json"
+      }
+    ],
+    "configuration": {
+      "title": "NativeDOM",
+      "properties": {
+        "nativedom.enableDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time diagnostics for .dom files (unclosed tags, missing imports, etc.)"
+        },
+        "nativedom.enableHoverDocs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover documentation for NativeDOM APIs and CSS properties."
+        },
+        "nativedom.enableAutoComplete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable IntelliSense auto-completion for elements, attributes, CSS properties, and JS APIs."
+        },
+        "nativedom.enableColorDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show color decorations inline for hex color values."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[dom]": {
+        "editor.suggest.insertMode": "replace",
+        "editor.autoClosingBrackets": "always",
+        "editor.autoClosingQuotes": "always",
+        "editor.wordBasedSuggestions": "matchingDocuments"
+      }
+    },
+    "commands": [
+      {
+        "command": "nativedom.runFile",
+        "title": "NativeDOM: Run Current .dom File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "nativedom.buildBundle",
+        "title": "NativeDOM: Build Bundle"
+      },
+      {
+        "command": "nativedom.openDocs",
+        "title": "NativeDOM: Open Documentation"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "when": "resourceLangId == dom",
+          "command": "nativedom.runFile",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "nativedom.runFile",
+        "key": "f5",
+        "when": "resourceLangId == dom"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.3.0"
+  }
+}

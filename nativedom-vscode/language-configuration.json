@@ -1,0 +1,49 @@
+{
+  "comments": {
+    "blockComment": ["<!--", "-->"]
+  },
+  "brackets": [
+    ["<", ">"],
+    ["{", "}"],
+    ["(", ")"],
+    ["[", "]"]
+  ],
+  "autoClosingPairs": [
+    { "open": "<", "close": ">", "notIn": ["string", "comment"] },
+    { "open": "{", "close": "}" },
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "\"", "close": "\"", "notIn": ["string"] },
+    { "open": "'", "close": "'", "notIn": ["string"] },
+    { "open": "<!--", "close": " -->", "notIn": ["string"] },
+    { "open": "<style>", "close": "</style>", "notIn": ["comment", "string"] },
+    { "open": "<script>", "close": "</script>", "notIn": ["comment", "string"] },
+    { "open": "<ui", "close": "</ui>", "notIn": ["comment", "string"] }
+  ],
+  "surroundingPairs": [
+    ["<", ">"],
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+    ["\"", "\""],
+    ["'", "'"]
+  ],
+  "folding": {
+    "markers": {
+      "start": "^\\s*(<(?:ui|style|script|View|div|component|import)[^/>]*>|\\{)",
+      "end": "^\\s*(</(?:ui|style|script|View|div|component)>|\\})"
+    }
+  },
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*<(?:ui|View|div|Text|Button|TextInput|Image|style|script|component)[^/>]*>\\s*$|^.*\\{[^}]*$",
+    "decreaseIndentPattern": "^\\s*</|^\\s*\\}"
+  },
+  "wordPattern": "[\\w\\-#\\.]+",
+  "onEnterRules": [
+    {
+      "beforeText": "<(?:ui|View|div|style|script|component)[^/>]*>",
+      "afterText": "</(?:ui|View|div|style|script|component)>",
+      "action": { "indent": "indentOutdent", "appendText": "    " }
+    }
+  ]
+}

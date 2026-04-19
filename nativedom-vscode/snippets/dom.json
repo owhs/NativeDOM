@@ -1,0 +1,454 @@
+{
+  "NativeDOM App Scaffold": {
+    "prefix": "dom-app",
+    "description": "Create a complete NativeDOM application scaffold with import, style, ui, and script blocks",
+    "body": [
+      "<import src=\"${1:components/Button.dom}\" as=\"${2:Button}\" />",
+      "",
+      "<style>",
+      "    ui {",
+      "        bg: ${3:#1E1E2E};",
+      "        font-family: Segoe UI, sans-serif;",
+      "        color: #CDD6F4;",
+      "    }",
+      "    #app {",
+      "        width: ${4:800};",
+      "        height: ${5:600};",
+      "    }",
+      "</style>",
+      "",
+      "<ui frameless=\"true\" id=\"app\" title=\"${6:My App}\" onLoad=\"init();\">",
+      "    $0",
+      "</ui>",
+      "",
+      "<script>",
+      "function init() {",
+      "    sys.window.center();",
+      "    sys.log(\"App loaded!\");",
+      "}",
+      "</script>"
+    ]
+  },
+
+  "NativeDOM Minimal App": {
+    "prefix": "dom-app-minimal",
+    "description": "Minimal NativeDOM .dom file with basic structure",
+    "body": [
+      "<style>",
+      "    #app {",
+      "        bg: ${1:#1E1E2E};",
+      "        width: ${2:600};",
+      "        height: ${3:400};",
+      "    }",
+      "</style>",
+      "",
+      "<ui id=\"app\" title=\"${4:App}\" position=\"center\">",
+      "    $0",
+      "</ui>",
+      "",
+      "<script>",
+      "</script>"
+    ]
+  },
+
+  "NativeDOM Component": {
+    "prefix": "dom-component",
+    "description": "Create a NativeDOM component (.dom file for import)",
+    "body": [
+      "<style>",
+      "    ${1:MyComponent} {",
+      "        bg: ${2:#181825};",
+      "        width: ${3:200};",
+      "        height: ${4:100};",
+      "        border-radius: ${5:8};",
+      "    }",
+      "    ${1:MyComponent}:hover {",
+      "        bg: ${6:#1E1E2E};",
+      "    }",
+      "</style>",
+      "",
+      "<ui width=\"100%\" height=\"100%\">",
+      "    $0",
+      "</ui>",
+      "",
+      "<script>",
+      "(function() {",
+      "    let self = document.getElementById(\"${7:componentId}\");",
+      "    if (!self) return;",
+      "",
+      "    self.${8:myMethod} = function(${9:value}) {",
+      "        $10",
+      "    };",
+      "})();",
+      "</script>"
+    ]
+  },
+
+  "Import Component": {
+    "prefix": "dom-import",
+    "description": "Import a .dom component",
+    "body": [
+      "<import src=\"${1:components/${2:Button}.dom}\" as=\"${2:Button}\" />"
+    ]
+  },
+
+  "Style Block": {
+    "prefix": "dom-style",
+    "description": "NativeDOM <style> block",
+    "body": [
+      "<style>",
+      "    ${1:selector} {",
+      "        ${2:bg}: ${3:#181825};",
+      "        $0",
+      "    }",
+      "</style>"
+    ]
+  },
+
+  "Script Block": {
+    "prefix": "dom-script",
+    "description": "NativeDOM <script> block",
+    "body": [
+      "<script>",
+      "$0",
+      "</script>"
+    ]
+  },
+
+  "Script IIFE": {
+    "prefix": "dom-iife",
+    "description": "IIFE pattern for NativeDOM component scripting",
+    "body": [
+      "(function() {",
+      "    let self = document.getElementById(\"${1:myId}\");",
+      "    if (!self) return;",
+      "",
+      "    $0",
+      "})();"
+    ]
+  },
+
+  "UI Root Tag": {
+    "prefix": "dom-ui",
+    "description": "NativeDOM root <ui> element with common attributes",
+    "body": [
+      "<ui frameless=\"${1:true}\" id=\"${2:app}\" title=\"${3:App Title}\" width=\"${4:800}\" height=\"${5:600}\" bg=\"${6:#1E1E2E}\">",
+      "    $0",
+      "</ui>"
+    ]
+  },
+
+  "Text Element": {
+    "prefix": "dom-text",
+    "description": "NativeDOM Text element",
+    "body": [
+      "<Text text=\"${1:Hello World}\" color=\"${2:#CDD6F4}\" font-size=\"${3:14}\" x=\"${4:0}\" y=\"${5:0}\" width=\"${6:200}\" height=\"${7:30}\" />"
+    ]
+  },
+
+  "Button Element": {
+    "prefix": "dom-button",
+    "description": "NativeDOM Button with click handler",
+    "body": [
+      "<Button id=\"${1:btn}\" x=\"${2:0}\" y=\"${3:0}\" onClick=\"${4:handleClick}();\" />"
+    ]
+  },
+
+  "View Container": {
+    "prefix": "dom-view",
+    "description": "NativeDOM View container with layout",
+    "body": [
+      "<View id=\"${1:container}\" layout=\"${2|row,col,absolute|}\" width=\"${3:100%}\" height=\"${4:100%}\" gap=\"${5:8}\">",
+      "    $0",
+      "</View>"
+    ]
+  },
+
+  "Image Element": {
+    "prefix": "dom-image",
+    "description": "NativeDOM Image element",
+    "body": [
+      "<Image src=\"${1:path/to/image.png}\" x=\"${2:0}\" y=\"${3:0}\" width=\"${4:100}\" height=\"${5:100}\" />"
+    ]
+  },
+
+  "TextInput Element": {
+    "prefix": "dom-input",
+    "description": "NativeDOM TextInput component",
+    "body": [
+      "<TextInput id=\"${1:input}\" x=\"${2:0}\" y=\"${3:0}\" width=\"${4:300}\" height=\"${5:36}\" />"
+    ]
+  },
+
+  "Event Listener": {
+    "prefix": "dom-on",
+    "description": "NativeDOM addEventListener",
+    "body": [
+      "${1:document}.addEventListener(\"${2|click,mousedown,mouseup,mousemove,mouseenter,mouseleave,keydown,keypress,keyup,focus,blur,load,resize,close,contextmenu,wheel,dblclick,drop,hotkey|}\", function(e) {",
+      "    $0",
+      "});"
+    ]
+  },
+
+  "Custom Event": {
+    "prefix": "dom-custom-event",
+    "description": "NativeDOM CustomEvent dispatch",
+    "body": [
+      "var ${1:evt} = new CustomEvent(\"${2:eventName}\", { detail: ${3:{}} });",
+      "document.dispatchEvent(${1:evt});"
+    ]
+  },
+
+  "Fetch Request": {
+    "prefix": "dom-fetch",
+    "description": "NativeDOM fetch() request",
+    "body": [
+      "fetch(\"${1:https://api.example.com/data}\").then(function(response) {",
+      "    if (response.ok) {",
+      "        var data = response.json();",
+      "        sys.log(JSON.stringify(data));",
+      "    } else {",
+      "        sys.log(\"Fetch failed: \" + response.status);",
+      "    }",
+      "});"
+    ]
+  },
+
+  "Timer Interval": {
+    "prefix": "dom-interval",
+    "description": "NativeDOM setInterval/clearInterval",
+    "body": [
+      "var ${1:handle} = setInterval(function() {",
+      "    $0",
+      "}, ${2:1000});"
+    ]
+  },
+
+  "Timer Timeout": {
+    "prefix": "dom-timeout",
+    "description": "NativeDOM setTimeout",
+    "body": [
+      "setTimeout(function() {",
+      "    $0",
+      "}, ${1:1000});"
+    ]
+  },
+
+  "DLL Call": {
+    "prefix": "dom-dllcall",
+    "description": "NativeDOM sys.dllCall for FFI",
+    "body": [
+      "sys.dllCall(\"${1:dll_name.dll}\", \"${2:FunctionName}\", [${3:0, 0, 0, 0, 0, 0, 0, 0}]);"
+    ]
+  },
+
+  "DLL Call String": {
+    "prefix": "dom-dllcallstring",
+    "description": "NativeDOM sys.dllCallString for string FFI",
+    "body": [
+      "var ${1:result} = sys.dllCallString(\"${2:dll_name.dll}\", \"${3:FunctionName}\", [${4:0, 0, 0, 0, 0, 0, 0, 0}]);"
+    ]
+  },
+
+  "Sys Log": {
+    "prefix": "dom-log",
+    "description": "NativeDOM sys.log()",
+    "body": [
+      "sys.log(${1:\"message\"});"
+    ]
+  },
+
+  "Window Center": {
+    "prefix": "dom-center",
+    "description": "Center the NativeDOM window",
+    "body": [
+      "sys.window.center();"
+    ]
+  },
+
+  "Window Resize": {
+    "prefix": "dom-resize",
+    "description": "Resize the NativeDOM window",
+    "body": [
+      "sys.window.resize(${1:800}, ${2:600});"
+    ]
+  },
+
+  "Register Hotkey": {
+    "prefix": "dom-hotkey",
+    "description": "Register a global hotkey",
+    "body": [
+      "sys.window.registerHotkey(${1:1}, \"${2:CTRL+ALT+T}\");",
+      "document.addEventListener(\"hotkey\", function(e) {",
+      "    if (e.id === ${1:1}) {",
+      "        $0",
+      "    }",
+      "});"
+    ]
+  },
+
+  "Screen Info": {
+    "prefix": "dom-screen",
+    "description": "Get screen information",
+    "body": [
+      "var info = sys.screen.getInfo();",
+      "sys.log(\"Screen: \" + info.width + \"×\" + info.height);"
+    ]
+  },
+
+  "Load Extension": {
+    "prefix": "dom-extension",
+    "description": "Load a NativeDOM C++ extension",
+    "body": [
+      "var success = sys.loadExtension(\"${1:plugins/my_plugin.dll}\");",
+      "if (!success) { sys.log(\"Extension failed to load!\"); }"
+    ]
+  },
+
+  "CSS Variable Declaration": {
+    "prefix": "dom-cssvar",
+    "description": "Declare a CSS variable in NativeDOM",
+    "body": [
+      "--${1:var-name}: ${2:value};"
+    ]
+  },
+
+  "CSS Transition": {
+    "prefix": "dom-transition",
+    "description": "NativeDOM CSS transition",
+    "body": [
+      "transition: ${1:bg} ${2:.2s} ${3:ease};"
+    ]
+  },
+
+  "CSS Variable Reference": {
+    "prefix": "dom-var",
+    "description": "Reference a CSS variable",
+    "body": [
+      "var(--${1:variable-name}${2:, ${3:default-value}})"
+    ]
+  },
+
+  "Calc Expression": {
+    "prefix": "dom-calc",
+    "description": "NativeDOM calc() expression",
+    "body": [
+      "calc(${1:100%} ${2:-} ${3:20})"
+    ]
+  },
+
+  "Color Mix": {
+    "prefix": "dom-colormix",
+    "description": "NativeDOM color-mix() function",
+    "body": [
+      "color-mix(${1:#000000}, ${2:#FFFFFF}, ${3:0.5})"
+    ]
+  },
+
+  "Shadow DOM Query": {
+    "prefix": "dom-shadow",
+    "description": "Query inside shadow DOM",
+    "body": [
+      "var ${1:el} = document.shadowDomSelector(\"${2:#element-id}\");"
+    ]
+  },
+
+  "Host Conditional Style": {
+    "prefix": "dom-host",
+    "description": "NativeDOM :host() conditional styling",
+    "body": [
+      ":host([${1:attribute}=\"${2:value}\"]) ${3:selector} {",
+      "    ${4:property}: ${5:value};",
+      "}"
+    ]
+  },
+
+  "Frameless Window with Titlebar": {
+    "prefix": "dom-frameless",
+    "description": "Frameless window with custom titlebar component",
+    "body": [
+      "<import src=\"${1:components/DefaultTitlebar.dom}\" as=\"TitleBar\" />",
+      "",
+      "<style>",
+      "    #app {",
+      "        bg: #1E1E2E;",
+      "        width: ${2:800};",
+      "        height: ${3:600};",
+      "    }",
+      "</style>",
+      "",
+      "<ui frameless=\"true\" id=\"app\" title=\"${4:My App}\">",
+      "    <TitleBar id=\"titlebar\" title=\"${4:My App}\" width=\"100%\" />",
+      "    <View y=\"32\" width=\"100%\" height=\"calc(${3:600} - 32)\">",
+      "        $0",
+      "    </View>",
+      "</ui>",
+      "",
+      "<script>",
+      "    sys.window.center();",
+      "</script>"
+    ]
+  },
+
+  "WebView Component": {
+    "prefix": "dom-webview",
+    "description": "Embed a WebView2 browser component",
+    "body": [
+      "<import src=\"${1:WebView.dom}\" as=\"WebView\" />",
+      "",
+      "<ui title=\"${2:Browser}\" width=\"${3:1024}\" height=\"${4:768}\" bg=\"#11111B\">",
+      "    <div layout=\"col\" width=\"100%\" height=\"100%\">",
+      "        <WebView id=\"${5:myBrowser}\" url=\"${6:https://example.com}\" width=\"100%\" height=\"100%\" />",
+      "    </div>",
+      "</ui>",
+      "",
+      "<script>",
+      "(function() {",
+      "    let browser = document.getElementById(\"${5:myBrowser}\");",
+      "    browser.onMessage(function(msg) {",
+      "        sys.log(\"Page says: \" + msg);",
+      "    });",
+      "})();",
+      "</script>"
+    ]
+  },
+
+  "Keyboard Hook": {
+    "prefix": "dom-keyboard",
+    "description": "Low-level keyboard hook",
+    "body": [
+      "sys.keyboard.hook(function(e) {",
+      "    sys.log(\"Key: \" + e.vkCode);",
+      "    return ${1:false}; // true = consume key",
+      "});"
+    ]
+  },
+
+  "Clipboard Access": {
+    "prefix": "dom-clipboard",
+    "description": "Clipboard read/write",
+    "body": [
+      "var ${1:text} = sys.clipboard.getText();",
+      "sys.log(\"Clipboard: \" + ${1:text});",
+      "// sys.clipboard.setText(\"new text\");"
+    ]
+  },
+
+  "Read/Write File": {
+    "prefix": "dom-file",
+    "description": "Read or write a text file",
+    "body": [
+      "var ${1:content} = sys.readText(\"${2:data.txt}\");",
+      "sys.log(${1:content});",
+      "// sys.writeText(\"${2:data.txt}\", \"new content\");"
+    ]
+  },
+
+  "Inline Pseudo State": {
+    "prefix": "dom-pseudo",
+    "description": "Inline pseudo-state attribute (hover, focused, active)",
+    "body": [
+      "${1|hover,focused,active|}:${2:bg}=\"${3:#FF0000}\""
+    ]
+  }
+}
