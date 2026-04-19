@@ -1,0 +1,6 @@
+*.txt
+*git
+test*
+*.exe
+bundled_*.h
+.vscode/

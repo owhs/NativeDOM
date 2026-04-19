@@ -1,0 +1,48 @@
+<style>
+    TitleBar {
+        bg: #11111B;
+        width: 100%;
+        height: 36;
+        cursor: move;
+    }
+    .title-text {
+        color: #CDD6F4;
+        font-weight: bold;
+        vertical-align: center;
+        padding-left: 12;
+        padding-top: 10;
+        pointer-events: none;
+    }
+    .btn-close {
+        bg: #F38BA8;
+        width: 16;
+        height: 16;
+        border-radius: 8;
+        cursor: pointer;
+        padding: 0;
+        transition: bg .15s ease;
+    }
+    .btn-close:hover {
+        bg: #EBA0AC;
+    }
+</style>
+<ui width="100%" height="100%">
+    <!-- Use direct x coordinates instead of relying on a missing flex Row -->
+    <Text class="title-text" text="var(--title-text, DOM App)" width="80%" height="100%" x="12" y="0" />
+    <Button id="internal-close" text="X" class="btn-close" right="16" y="10" />
+</ui>
+
+<script>
+    var titleBarEl = document.shadowDomSelector("TitleBar");
+    var btnClose = document.shadowDomSelector("#internal-close");
+    if (btnClose) btnClose.addEventListener("click", function() { sys.window.close(); });
+
+    if (titleBarEl) {
+        titleBarEl.addEventListener("mousedown", function(e) {
+            var id = e.target.id;
+            if (id == "internal-close") return;
+            // Native frameless window dragging (WM_NCLBUTTONDOWN = 0xA1, HTCAPTION = 2)
+            sys.sendMessage(sys.getHwnd(), 161, 2, 0);
+        });
+    }
+</script>

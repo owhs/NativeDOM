@@ -1,0 +1,228 @@
+<style>
+    #app {
+        font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    }
+    .panel {
+        bg: #1e1e2e;
+        border: 1px solid #313244;
+        border-radius: 8px;
+    }
+    .btn {
+        bg: #89b4fa;
+        color: #11111b;
+        font-weight: bold;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: bg 150ms ease;
+    }
+    .btn:hover {
+        bg: #b4befe;
+    }
+    .btn-red {
+        bg: #f38ba8;
+    }
+    .btn-red:hover {
+        bg: #eba0ac;
+    }
+    .btn-green {
+        bg: #a6e3a1;
+    }
+    .btn-green:hover {
+        bg: #94e2d5;
+    }
+    .label {
+        font-weight: bold;
+        color: #cdd6f4;
+        font-size: 13px;
+    }
+    .value {
+        color: #a6adc8;
+        font-size: 13px;
+    }
+</style>
+
+<ui id="app" width="600" height="660" bg="#11111b" frameless="true" system-shadow="true" centered="true">
+    <DefaultTitlebar title="System API Showcase Hub" />
+    
+    <View width="100%" height="calc(100% - 32)" y="32">
+        <Text text="DOM System API Demo" font-size="20" font-weight="bold" color="#cba6f7" x="20" y="10" width="300" height="30" />
+        
+        <!-- Window Controls -->
+        <View class="panel" x="20" y="50" width="560" height="96">
+            <Text text="1. Window & Taskbar Visibility" class="label" x="16" y="12" width="250" height="20" />
+            <Button id="btnHide" text="Hide Completely (3s)" class="btn btn-red" x="16" y="38" width="160" height="32" />
+            <Text text="Hides the window and removes it from the taskbar, then automatically resurfaces after 3 seconds." color="#a6adc8" font-size="11" x="16" y="74" width="500" height="20" />
+        </View>
+
+        <!-- Global Hotkeys -->
+        <View class="panel" x="20" y="160" width="560" height="110">
+            <Text text="2. Global OS Hotkeys" class="label" x="16" y="12" width="200" height="20" />
+            <Text text="Register 'CTRL + SHIFT + F' globally to trigger an alert, even when hidden or minimized." color="#a6adc8" font-size="11" x="16" y="32" width="500" height="20" />
+            <Button id="btnRegKey" text="Register Hotkey" class="btn btn-green" x="16" y="52" width="130" height="32" />
+            <Button id="btnUnregKey" text="Unregister Hotkey" class="btn btn-red" x="156" y="52" width="136" height="32" />
+            <Text id="hotkeyStatus" text="Status: Not Registered" color="#f9e2af" font-size="12" font-weight="bold" x="16" y="88" width="300" height="20" />
+        </View>
+
+        <!-- Keyboard Interception & Foreground Polling -->
+        <View class="panel" x="20" y="284" width="560" height="110">
+            <Text text="3. Low-Level Hooks & Active Process" class="label" x="16" y="12" width="250" height="20" />
+            <Text text="Foreground Window:" class="label" x="16" y="32" width="150" height="20" />
+            <Text id="lblProcess" text="Scanning..." class="value" x="160" y="32" width="380" height="20" />
+            
+            <Button id="btnHook" text="Block 'Spacebar' in notepad.exe" class="btn" x="16" y="56" width="220" height="32" />
+            <Button id="btnUnhook" text="Remove Hook" class="btn btn-red" x="246" y="56" width="120" height="32" />
+            
+            <Text id="hookStatus" text="Status: Idle" color="#f9e2af" font-size="12" font-weight="bold" x="16" y="92" width="400" height="20" />
+        </View>
+
+        <!-- Global Mouse & Monitor Info -->
+        <View class="panel" x="20" y="408" width="560" height="80">
+            <Text text="4. Display & Cursor Tracking" class="label" x="16" y="12" width="200" height="20" />
+            <Text text="Global Mouse Pos:" class="label" x="16" y="36" width="130" height="20" />
+            <Text id="lblMouse" text="X: 0, Y: 0" class="value" x="150" y="36" width="150" height="20" />
+            <Text text="Active Monitor:" class="label" x="16" y="56" width="130" height="20" />
+            <Text id="lblMonitor" text="Waiting..." class="value" x="150" y="56" width="380" height="20" />
+        </View>
+        
+        <!-- Clipboard operations -->
+        <View class="panel" x="20" y="502" width="560" height="106">
+            <Text text="5. Native Clipboard" class="label" x="16" y="12" width="200" height="20" />
+            <Text text="Current Text:" class="label" x="16" y="36" width="100" height="20" />
+            <Text id="lblClipboard" text="..." class="value" x="110" y="36" width="400" height="20" />
+            
+            <Button id="btnCopy" text="Copy Benchmark" class="btn btn-green" x="16" y="62" width="140" height="32" />
+            <Button id="btnClear" text="Clear Clipboard" class="btn btn-red" x="166" y="62" width="130" height="32" />
+        </View>
+    </View>
+</ui>
+
+<script>
+    // 1. Window Hiding
+    var btnHide = document.getElementById("btnHide");
+    if (btnHide) {
+        btnHide.addEventListener("click", function() {
+            sys.window.hide();
+            setTimeout(function() { sys.window.show(); }, 3000);
+        });
+    }
+
+    // 2. Global Hotkey
+    var btnRegKey = document.getElementById("btnRegKey");
+    var btnUnregKey = document.getElementById("btnUnregKey");
+    var hotkeyStatus = document.getElementById("hotkeyStatus");
+    var MOD_CTRL = 2, MOD_SHIFT = 4, VK_F = 0x46;
+    
+    if (btnRegKey) {
+        btnRegKey.addEventListener("click", function() {
+            if (sys.window.registerHotkey(42, MOD_CTRL | MOD_SHIFT, VK_F)) {
+                if (hotkeyStatus) {
+                    hotkeyStatus.setAttribute("text", "Status: Registered (Press CTRL+SHIFT+F)");
+                    hotkeyStatus.setAttribute("color", "#a6e3a1");
+                }
+            }
+        });
+    }
+    if (btnUnregKey) {
+        btnUnregKey.addEventListener("click", function() {
+            sys.window.unregisterHotkey(42);
+            if (hotkeyStatus) {
+                hotkeyStatus.setAttribute("text", "Status: Not Registered");
+                hotkeyStatus.setAttribute("color", "#f9e2af");
+            }
+        });
+    }
+    window.addEventListener("hotkey", function(e) {
+        if (e.id == 42) {
+            sys.window.show();
+            if (hotkeyStatus) {
+                hotkeyStatus.setAttribute("text", "Hotkey Triggered!");
+                hotkeyStatus.setAttribute("color", "#cba6f7");
+                setTimeout(function() {
+                    hotkeyStatus.setAttribute("text", "Status: Registered (Press CTRL+SHIFT+F)");
+                    hotkeyStatus.setAttribute("color", "#a6e3a1");
+                }, 2000);
+            }
+        }
+    });
+
+    // 3. Process & Hooks
+    var lblProcess = document.getElementById("lblProcess");
+    var hookStatus = document.getElementById("hookStatus");
+    var VK_SPACE = 0x20;
+    
+    var btnHook = document.getElementById("btnHook");
+    if (btnHook) {
+        btnHook.addEventListener("click", function() {
+            sys.keyboard.hook(function(evt) {
+                var proc = sys.window.getActiveProcessName() || "";
+                if (evt.vkCode == VK_SPACE && evt.isDown && proc.toLowerCase() == "notepad.exe") {
+                    setTimeout(function() {
+                        sys.clipboard.setText("[SPACE BLOCKED!]");
+                    }, 5);
+                    return true;
+                }
+                return false;
+            });
+            if (hookStatus) {
+                hookStatus.setAttribute("text", "Status: Hook Active (Open Notepad and press space)");
+                hookStatus.setAttribute("color", "#f38ba8");
+            }
+        });
+    }
+    
+    var btnUnhook = document.getElementById("btnUnhook");
+    if (btnUnhook) {
+        btnUnhook.addEventListener("click", function() {
+            sys.keyboard.unhook();
+            if (hookStatus) {
+                hookStatus.setAttribute("text", "Status: Idle");
+                hookStatus.setAttribute("color", "#f9e2af");
+            }
+        });
+    }
+
+    // Polling Loop
+    var lblMouse = document.getElementById("lblMouse");
+    var lblMonitor = document.getElementById("lblMonitor");
+    var lblClipboard = document.getElementById("lblClipboard");
+    
+    setInterval(function() {
+        var proc = sys.window.getActiveProcessName();
+        if (lblProcess) lblProcess.setAttribute("text", proc || "Unknown");
+        
+        var pos = sys.screen.getMousePosition();
+        if (pos && lblMouse) {
+            lblMouse.setAttribute("text", "X: " + pos.x + ", Y: " + pos.y);
+            var mon = sys.screen.getMonitorAt(pos.x, pos.y);
+            if (mon && lblMonitor) {
+                var prim = mon.isPrimary ? "(Primary)" : "";
+                var monProps = "[" + mon.name + "] " + mon.width + "x" + mon.height + " " + prim;
+                lblMonitor.setAttribute("text", monProps);
+            }
+        }
+        
+        var clipText = sys.clipboard.getText();
+        if (clipText && lblClipboard) {
+            if (clipText.length > 50) lblClipboard.setAttribute("text", clipText.substring(0, 50) + "...");
+            else lblClipboard.setAttribute("text", clipText);
+        } else if (lblClipboard) {
+            lblClipboard.setAttribute("text", "<empty or non-text>");
+        }
+    }, 100);
+
+    // Clipboard Buttons
+    var clipboardCounter = 0;
+    var btnCopy = document.getElementById("btnCopy");
+    if (btnCopy) {
+        btnCopy.addEventListener("click", function() {
+            clipboardCounter++;
+            sys.clipboard.setText("Hello from DOM! Event fired " + clipboardCounter + " time(s).");
+        });
+    }
+    var btnClear = document.getElementById("btnClear");
+    if (btnClear) {
+        btnClear.addEventListener("click", function() {
+            sys.clipboard.clear();
+        });
+    }
+</script>

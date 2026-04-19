@@ -1,0 +1,29 @@
+<import src="../components/DefaultTitlebar.dom" as="titlebar" />
+
+
+<ui frameless="true" width="500" height="300" bg="#1e1e2e" id="app" position="center">
+    <titlebar id="titlebar" title="DOM Win11 Native" />
+
+    <View y="32" width="100%" height="268">
+        <Text text="Win11 Native DWM Shadow &amp; Rounded Corners" color="#cdd6f4" font-size="16" font-weight="bold" x="20" y="20" width="460" height="30" />
+        <Text text="This frameless window delegates its corners and drop shadow to Windows 11 DWM. The OS automatically handles its projection!" color="#a6adc8" font-size="12" x="20" y="55" width="460" height="50" />
+
+        <Button text="Switch to Layered Shadow" bg="#89b4fa" width="200" height="30" x="20" y="120" id="toggleMode" cursor="pointer" />
+        <Button text="Go Full Screen" bg="#f38ba8" color="#11111b" width="150" height="30" x="230" y="120" id="goFullscreen" cursor="pointer" />
+    </View>
+</ui>
+
+<script>
+    var isFullscreen = false;
+    document.getElementById("goFullscreen").addEventListener("click", function(e) {
+        isFullscreen = !isFullscreen;
+        document.getElementById("app").setAttribute("fullscreen", isFullscreen ? "true" : "false");
+        e.target.setAttribute("text", isFullscreen ? "Exit Full Screen" : "Go Full Screen");
+        if (!sys.window.isMaximized()) sys.window.maximize();
+        else { sys.window.restore(); sys.window.maximize(); } // Force re-eval
+    });
+
+    document.getElementById("toggleMode").addEventListener("click", function() { 
+        sys.loadScript("examples/shadow_demo/app_layered.dom", false);
+    });
+</script>

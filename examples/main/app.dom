@@ -1,0 +1,342 @@
+<import src="../components/TextInput.dom" as="TextInput" />
+<import src="../components/Button.dom" as="Button" />
+<import src="../components/CustomTitleBar.dom" as="TitleBar" />
+
+<style>
+    /* ---- Main Window Styling ---- */
+    ui {
+        bg: #1E1E2E;
+        font-family: Segoe UI, sans-serif;
+        color: #CDD6F4;
+        border-radius: 12;
+    }
+    
+    #drag-box {
+        bg: #CBA6F7;
+        width: 100;
+        height: 100;
+        border-radius: 12;
+        cursor: pointer;
+        transition: bg .2s ease;
+    }
+    #drag-box:hover {
+        bg: #F5C2E7;
+    }
+    .drag-text {
+        text-align: center;
+        vertical-align: center;
+        color: #11111B;
+        font-weight: bold;
+        pointer-events: none;
+    }
+
+    /* ---- Global Variables ---- */
+    #app {
+        --theme-bg: #1E1E2E;
+        --theme-surface: #181825;
+        --theme-text: #CDD6F4;
+        --theme-accent: #89B4FA;
+        --input-width: 400;
+        bg: var(--theme-bg);
+        width: 860;
+        height: 640;
+    }
+
+    /* ---- Header ---- */
+    .header {
+        font-size: 22;
+        color: #F38BA8;
+        x: 24;
+        y: 16;
+        width: 812;
+        height: 40;
+        bg: #00000000;
+        drag: true;
+        font-weight: bold;
+    }
+
+    .subtitle {
+        font-size: 12;
+        color: #6C7086;
+        x: 24;
+        y: 48;
+        width: 600;
+        height: 20;
+        bg: #00000000;
+    }
+
+    /* ---- Section Labels ---- */
+    .section-label {
+        font-size: 11;
+        color: #A6ADC8;
+        bg: #00000000;
+        height: 18;
+        width: 400;
+        font-weight: bold;
+    }
+
+    TextInput {
+        bg: #1E1E2E;
+        color: #CDD6F4;
+        border: #313244;
+        border-width: 1;
+        border-radius: 4;
+        padding: 8;
+        width: var(--input-width);
+        height: 36;
+        font-size: 14;
+        transition: border .2s ease, bg .2s ease;
+    }
+    TextInput:focused {
+        border: #89B4FA;
+        bg: #181825;
+    }
+
+    /* ---- Log Panel ---- */
+    #logs {
+        font-size: 13;
+        color: #A6E3A1;
+        bg: #11111B;
+        border: #313244;
+        border-radius: 8;
+        padding: 12;
+    }
+
+    /* ---- Close Button ---- */
+    #btn-close {
+        bg: #F38BA8;
+        padding: 0;
+        width: 36;
+        height: 36;
+        border-radius: 18;
+        --text-color: #505050;
+        transition: bg .15s ease;
+    }
+    #btn-close:hover {
+        bg: #EBA0AC;
+        --text-color: #ffffff;
+    }
+</style>
+
+<ui frameless="true" width="860" height="640" id="app" title="DOM Engine Demo" onLoad="onAppLoad();">
+
+    <!-- Custom Draggable TitleBar replacing the static header -->
+    <TitleBar id="main-titlebar" width="100%" />
+
+    <View id="drag-box" x="650" y="50">
+        <Text class="drag-text" text="Drag Me!" width="100%" height="100%" />
+    </View>
+
+    <Text color="#A6ADC8" font-size="13" x="24" y="50" text="Custom JS engine • GDI+ rendering • No Duktape/V8/WebView" />
+
+    <!-- Controls Section -->
+    <Text class="section-label" x="24" y="84" text="INTERACTIVE CONTROLS" />
+
+    <TextInput id="input-demo" x="24" y="106" />
+
+    <Button id="btn-resize" x="440" y="106" onClick="doResize();" />
+    <Button id="btn-center" x="576" y="106" onClick="doCenter();" />
+    <Button id="btn-dll"    x="712" y="106" onClick="testDLL();" />
+
+    <!-- Advanced Section -->
+    <Text class="section-label" x="24" y="160" text="ASYNC / FETCH / EVENTS" />
+
+    <Button id="btn-fetch"  x="24"  y="182" onClick="doFetch();" />
+    <Button id="btn-timer"  x="160" y="182" onClick="startTimer();" />
+    <Button id="btn-custom" x="296" y="182" onClick="fireCustomEvent();" />
+    <Button id="btn-screen" x="432" y="182" onClick="getScreenInfo();" />
+    <Button id="btn-opacity" x="568" y="182" onClick="toggleOpacity();" />
+
+    <!-- Log Output -->
+    <Text class="section-label" x="24" y="232" text="SYSTEM LOG" />
+    <Text id="mouse-pos" x="650" y="232" text="Mouse: 0, 0" color="#6C7086" font-size="11" />
+    <Text id="logs" x="24" y="254" width="812" height="362" text="" />
+
+</ui>
+
+<script>
+var logLines = [];
+var isTransparent = false;
+var timerCount = 0;
+var timerHandle = null;
+
+function log(msg) {
+    sys.log(msg);
+    logLines.push(msg);
+    if (logLines.length > 22) logLines.shift();
+    var el = document.querySelector("#logs");
+    if (el) {
+        el.setAttribute("text", logLines.join("\n"));
+    }
+}
+
+var dragBox = null;
+var isBoxDragging = false;
+var startBoxX = 0, startBoxY = 0;
+
+function onAppLoad() {
+    log("✓ DOM Engine loaded successfully");
+    log("  Zero external dependencies — custom JS interpreter");
+    log("  GDI+ rendering with double buffering");
+    log("  Full event system with bubbling & propagation control");
+    log("");
+
+    // Set button labels via shadow DOM
+    var labels = {
+        "#btn-resize": "Resize",
+        "#btn-center": "Center",
+        "#btn-dll": "DLL Call",
+        "#btn-fetch": "Fetch URL",
+        "#btn-timer": "Start Timer",
+        "#btn-custom": "Custom Evt",
+        "#btn-screen": "Screen Info",
+        "#btn-opacity": "Opacity",
+        "#btn-close": "❌"
+    };
+
+    var keys = Object.keys(labels);
+    for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var txt = document.shadowDomSelector(key + " Text");
+        if (txt) txt.setAttribute("text", labels[key]);
+    }
+
+    // Track all standard mouse events
+    document.addEventListener("mousedown", function(e) {
+        log("  [Global] " + e.type + " event received");
+    });
+    document.addEventListener("mouseup", function(e) {
+        log("  [Global] " + e.type + " event received");
+    });
+    document.addEventListener("click", function(e) {
+        log("  [Global] " + e.type + " event received");
+    });
+
+    // Track mouse movement and update label (avoids log spam)
+    document.addEventListener("mousemove", function(e) {
+        var posEl = document.getElementById("mouse-pos");
+        if (posEl) posEl.setAttribute("text", "Mouse: " + e.clientX + ", " + e.clientY);
+    });
+
+    // Make the logs box scale responsively
+    document.addEventListener("resize", function(e) {
+        var logs = document.getElementById("logs");
+        if (logs) {
+            logs.setAttribute("width", e.width - 48);
+            logs.setAttribute("height", e.height - 254 - 24);
+        }
+        
+        // Force TitleBar resize dynamically
+        var tb = document.getElementById("main-titlebar");
+        if (tb) {
+            tb.setAttribute("width", e.width);
+        }
+    });
+
+    // Register custom event listener
+    document.addEventListener("myCustomEvent", function(e) {
+        log("  [Custom Event] Received: myCustomEvent");
+    });
+
+    // Center the window
+    sys.window.center();
+    log("Window bounds captured natively using C++ binding.");
+    
+    // Custom Draggable element!
+    isBoxDragging = false;
+    startBoxX = 0;
+    startBoxY = 0;
+    dragBox = document.shadowDomSelector("#drag-box");
+    
+    dragBox.addEventListener("mousedown", function(e) {
+        isBoxDragging = true;
+        // Parse current x and y, if null fallback to 0
+        var curX = parseInt(dragBox.getAttribute("x") || "0");
+        var curY = parseInt(dragBox.getAttribute("y") || "0");
+        startBoxX = e.clientX - curX;
+        startBoxY = e.clientY - curY;
+    });
+    
+    document.addEventListener("mousemove", function(e) {
+        if (isBoxDragging && dragBox) {
+            dragBox.setAttribute("x", e.clientX - startBoxX);
+            dragBox.setAttribute("y", e.clientY - startBoxY);
+        }
+    });
+
+    document.addEventListener("mouseup", function() {
+        isBoxDragging = false;
+    });
+}
+
+function doResize() {
+    log("→ Resizing window to 1024×768...");
+    sys.window.resize(1024, 768);
+}
+
+function doCenter() {
+    log("→ Centering window...");
+    sys.window.center();
+}
+
+function testDLL() {
+    log("→ Calling User32.dll!MessageBoxA...");
+    sys.dllCall("User32.dll", "MessageBoxA", [0, "Hello from DOM's custom JS engine!", "DOM DLL Bridge", 0]);
+    log("  DLL call returned.");
+}
+
+function doFetch() {
+    log("→ Fetching https://httpbin.org/get ...");
+    fetch("https://httpbin.org/get").then(function(response) {
+        log("  ✓ Response: " + response.status);
+        log("  Body length: " + response.body.length + " bytes");
+    });
+}
+
+function startTimer() {
+    if (timerHandle) {
+        clearInterval(timerHandle);
+        timerHandle = null;
+        timerCount = 0;
+        log("  ⏹ Timer stopped.");
+        var btn = document.shadowDomSelector("#btn-timer Text");
+        if (btn) btn.setAttribute("text", "Start Timer");
+        return;
+    }
+    log("→ Starting interval timer...");
+    var btn2 = document.shadowDomSelector("#btn-timer Text");
+    if (btn2) btn2.setAttribute("text", "Stop Timer");
+
+    timerHandle = setInterval(function() {
+        timerCount++;
+        log("  ⏱ Timer tick #" + timerCount);
+        if (timerCount >= 10) {
+            clearInterval(timerHandle);
+            timerHandle = null;
+            timerCount = 0;
+            log("  ⏹ Timer auto-stopped at 10 ticks.");
+            var btn3 = document.shadowDomSelector("#btn-timer Text");
+            if (btn3) btn3.setAttribute("text", "Start Timer");
+        }
+    }, 1000);
+}
+
+function fireCustomEvent() {
+    log("→ Dispatching custom event...");
+    var evt = CustomEvent("myCustomEvent", { detail: "test-payload" });
+    document.dispatchEvent(evt);
+}
+
+function getScreenInfo() {
+    var info = sys.screen.getInfo();
+    log("→ Screen: " + info.width + "×" + info.height + " (" + info.monitors + " monitor(s))");
+    log("  Work area: " + info.workArea.width + "×" + info.workArea.height);
+    log("  DPI: " + sys.screen.getDPI());
+}
+
+function toggleOpacity() {
+    isTransparent = !isTransparent;
+    sys.window.setOpacity(isTransparent ? 0.7 : 1.0);
+    log("→ Opacity: " + (isTransparent ? "70%" : "100%"));
+}
+</script>

@@ -1,0 +1,29 @@
+<style>
+    Button {
+        bg: #89B4FA;
+        color: #11111B;
+        width: 120;
+        height: 36;
+        border-radius: 6;
+        cursor: pointer;
+        font-weight: bold;
+        transition: bg .25s ease, width .2s ease;
+    }
+    Button:hover {
+        bg: #B4BEFE;
+    }
+    Button:active {
+        bg: #74C7EC;
+    }
+    .btn-text {
+        text-align: center;
+        vertical-align: center;
+        color: var(--text-color, #11111B);
+        padding-left: 10;
+        padding-right: 10;
+        transition: color .2s ease;
+    }
+</style>
+<ui width="100%" height="100%">
+    <Text class="btn-text" text="var(text, Click Me)" width="100%" height="100%" />
+</ui>

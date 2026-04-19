@@ -1,0 +1,74 @@
+<style>
+    #titlebar {
+        --close-btn-hover-bg: #c42b1c;
+        --close-btn-hover-color: #faeeed;
+        --titlebar-height: 31;
+    }
+    :host([maximizable="false"]) #btnMax {
+        display: none;
+    }
+</style>
+<ui id="titlebar" width="100%" height="var(--titlebar-height)" bg="#181825">
+    <Image src="system:exe" x="12" y="8" width="16" height="16" />
+    <Text text="var(title, Window Title)" color="#a6adc8" font-size="12" x="36" y="9" width="300" height="20" />
+    
+    <!-- Controls -->
+    <View id="controls" width="auto" height="var(--titlebar-height)" right="0" layout="row" justify="end" color="#cdd6f4">
+        <View id="btnMin" width="46" height="var(--titlebar-height)" x="0" cursor="default" hover:bg="#313244" transition="bg 100ms">
+            <Text id="minIcon" text="&#xE921;" font-family="Segoe Fluent Icons, Segoe MDL2 Assets" font-size="11" x="17" y="10" width="20" height="20" cursor="default" />
+        </View>
+        <View id="btnMax" width="46" height="var(--titlebar-height)" x="46" cursor="default" hover:bg="#313244" transition="bg 100ms">
+            <Text id="maxIcon" text="&#xE922;" font-family="Segoe Fluent Icons, Segoe MDL2 Assets" font-size="11" x="17" y="10" width="20" height="20" cursor="default" />
+        </View>
+        <View id="btnClose" width="46" height="var(--titlebar-height)" x="92" cursor="default" hover:bg="var(--close-btn-hover-bg)" hover:color="var(--close-btn-hover-color)" transition="bg 100ms, color 100ms">
+            <Text id="closeIcon" text="&#xE8BB;" font-family="Segoe Fluent Icons, Segoe MDL2 Assets" font-size="11" x="17" y="10" width="20" height="20" cursor="default" />
+        </View>
+    </View>
+</ui>
+<script>
+    var titlebar = document.shadowDomSelector("#titlebar");
+    var btnClose = document.shadowDomSelector("#btnClose");
+    var btnMin = document.shadowDomSelector("#btnMin");
+    var btnMax = document.shadowDomSelector("#btnMax");
+    var maxIcon = document.shadowDomSelector("#maxIcon");
+
+    if (btnClose) btnClose.addEventListener("click", function() { sys.window.close(); });
+    if (btnMin) btnMin.addEventListener("click", function() { sys.window.minimize(); });
+    
+    function updateMaxBtn() {
+        if (sys.window.isMaximized()) {
+            if (maxIcon) maxIcon.setAttribute("text", "&#xE923;");
+        } else {
+            if (maxIcon) maxIcon.setAttribute("text", "&#xE922;");
+        }
+    }
+    
+    if (btnMax) {
+        btnMax.addEventListener("click", function() { 
+            if (sys.window.isMaximized()) sys.window.restore();
+            else sys.window.maximize();
+            updateMaxBtn();
+        });
+        setInterval(updateMaxBtn, 500);
+    }
+
+    if (titlebar) {
+        titlebar.addEventListener("dblclick", function(e) {
+            var id = e.target.id;
+            if (id == "btnMin" || id == "minIcon" || id == "btnMax" || id == "maxIcon" || id == "btnClose" || id == "closeIcon" || id == "controls") return;
+            
+            var host = titlebar.parentElement();
+            if (host && host.getAttribute("maximizable") == "false") return;
+
+            if (sys.window.isMaximized()) sys.window.restore();
+            else sys.window.maximize();
+            updateMaxBtn();
+        });
+
+        titlebar.addEventListener("mousedown", function(e) {
+            var id = e.target.id;
+            if (id == "btnMin" || id == "minIcon" || id == "btnMax" || id == "maxIcon" || id == "btnClose" || id == "closeIcon" || id == "controls") return;
+            sys.sendMessage(sys.getHwnd(), 161, 2, 0); // 161 = WM_NCLBUTTONDOWN, 2 = HTCAPTION
+        });
+    }
+</script>
