@@ -4,7 +4,7 @@ A lightweight C++ custom UI framework with a built-in JS-like scripting engine. 
 
 ---
 
-## 📚 Master Directory
+## Master Directory
 
 Welcome to the comprehensive NativeDOM documentation map. Everything you need to architect massive systems or tweak low-level window bindings has been cleanly routed and documented into verbose chapters.
 
