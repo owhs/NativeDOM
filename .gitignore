@@ -13,3 +13,5 @@ bin/
 *.pdb
 *.dll
 EBWebView/
+*.png
+*.jpg

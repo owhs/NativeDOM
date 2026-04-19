@@ -4,34 +4,65 @@
     .toolbar {
         layout: row;
         align: center;
-        gap: 15;
-        padding: 10 20;
+        gap: 8;
+        padding: 6 12;
         bg: #1E1E2E;
-        height: 60;
+        height: 44;
     }
-    .url_text { color: #CDD6F4; font-size: 16; }
-    .btn { padding: 8 20; bg: #89B4FA; color: #11111B; border-radius: 8; cursor: pointer; }
-    .btn:hover { bg: #B4BEFE; }
-    .btn_danger { padding: 8 20; bg: #F38BA8; color: #11111B; border-radius: 8; cursor: pointer; }
-    .btn_danger:hover { bg: #FBA922; }
+    .nav-btn { 
+        padding: 4 12; bg: #313244; color: #CDD6F4; border-radius: 6; 
+        cursor: pointer; font-size: 13; 
+    }
+    .nav-btn:hover { bg: #45475A; }
+    .site-btn { 
+        padding: 4 14; bg: #89B4FA; color: #11111B; border-radius: 6; 
+        cursor: pointer; font-size: 12; 
+    }
+    .site-btn:hover { bg: #B4BEFE; }
+    .tool-btn { 
+        padding: 4 14; bg: #A6E3A1; color: #11111B; border-radius: 6; 
+        cursor: pointer; font-size: 12; 
+    }
+    .tool-btn:hover { bg: #94E2D5; }
+    .danger-btn { 
+        padding: 4 14; bg: #F38BA8; color: #11111B; border-radius: 6; 
+        cursor: pointer; font-size: 12; 
+    }
+    .danger-btn:hover { bg: #FAB387; }
+    .url-bar { 
+        color: #6C7086; font-size: 11; 
+    }
 </style>
 
 <ui title="NativeDOM Edge Wrapper" width="1200" height="800" bg="#11111B">
     <div layout="col" width="100%" height="100%">
+        <!-- Navigation Bar -->
         <div class="toolbar" width="100%">
-            <span class="url_text">Address:</span>
-            <div id="btnGoogle" class="btn">Google</div>
-            <div id="btnYoutube" class="btn">YouTube</div>
-            <div id="btnGithub" class="btn">GitHub</div>
-            
-            <!-- Padding spacer -->
-            <div width="50" height="1"></div>
-            
-            <div id="btnJs" class="btn">Execute Alert (JS)</div>
-            <div id="btnRotate" class="btn">CSS Rotate View</div>
-            <div id="btnHide" class="btn_danger">Toggle Visibility</div>
+            <div id="btnBack" class="nav-btn">←</div>
+            <div id="btnForward" class="nav-btn">→</div>
+            <div id="btnReload" class="nav-btn">↻</div>
+            <div id="btnStop" class="nav-btn">✕</div>
+
+            <div width="8" height="1"></div>
+
+            <div id="btnGoogle" class="site-btn">Google</div>
+            <div id="btnYoutube" class="site-btn">YouTube</div>
+            <div id="btnGithub" class="site-btn">GitHub</div>
+
+            <div width="8" height="1"></div>
+
+            <div id="btnJs" class="tool-btn">Inject JS</div>
+            <div id="btnDevTools" class="tool-btn">DevTools</div>
+            <div id="btnCapture" class="tool-btn">Screenshot</div>
+            <div id="btnHide" class="danger-btn">Toggle</div>
         </div>
 
+        <!-- URL Display -->
+        <div width="100%" height="20" bg="#181825" padding="0 12">
+            <Text id="urlDisplay" class="url-bar" text="about:blank" width="100%" height="20" white-space="nowrap" />
+        </div>
+
+        <!-- WebView Content -->
         <div layout="col" width="100%" height="100%" id="contentWrapper">
             <WebView id="myBrowser" url="https://news.ycombinator.com" width="100%" height="100%" />
         </div>
@@ -39,7 +70,6 @@
 </ui>
 
 <script>
-    // ---- App initialization ----
     (function() {
         let browser = document.getElementById("myBrowser");
         if (!browser) {
@@ -47,38 +77,66 @@
             return;
         }
 
+        let urlDisplay = document.getElementById("urlDisplay");
+
+        // Navigation
+        document.getElementById("btnBack").addEventListener("click", () => {
+            browser.goBack();
+        });
+        document.getElementById("btnForward").addEventListener("click", () => {
+            browser.goForward();
+        });
+        document.getElementById("btnReload").addEventListener("click", () => {
+            browser.reload();
+        });
+        document.getElementById("btnStop").addEventListener("click", () => {
+            browser.stop();
+        });
+
+        // Sites
         document.getElementById("btnGoogle").addEventListener("click", () => {
-            sys.log("Button: Google clicked");
-            if (browser.navigate) browser.navigate("https://google.com");
+            browser.navigate("https://google.com");
         });
-
         document.getElementById("btnYoutube").addEventListener("click", () => {
-            sys.log("Button: YouTube clicked");
-            if (browser.navigate) browser.navigate("https://youtube.com");
+            browser.navigate("https://youtube.com");
         });
-
         document.getElementById("btnGithub").addEventListener("click", () => {
-            sys.log("Button: GitHub clicked");
-            if (browser.navigate) browser.navigate("https://github.com");
+            browser.navigate("https://github.com");
         });
 
+        // Tools
         document.getElementById("btnJs").addEventListener("click", () => {
-            sys.log("Button: Execute JS clicked");
-            if (browser.executeScript) browser.executeScript("alert('Hello from NativeDOM C++ Interface!');");
+            browser.executeScript("document.body.style.border = '4px solid #89B4FA'; alert('Hello from NativeDOM!');");
         });
-
-        document.getElementById("btnRotate").addEventListener("click", () => {
-            sys.log("Button: CSS Rotate clicked");
-            if (browser.executeScript) browser.executeScript("document.body.style.transition = 'transform 1s'; document.body.style.transform = 'rotate(180deg)';");
+        document.getElementById("btnDevTools").addEventListener("click", () => {
+            browser.openDevTools();
+        });
+        document.getElementById("btnCapture").addEventListener("click", () => {
+            browser.capturePreview("webview_capture.png", "png");
+            sys.log("Screenshot saved to webview_capture.png");
         });
 
         let visible = true;
         document.getElementById("btnHide").addEventListener("click", () => {
             visible = !visible;
-            sys.log("Button: Toggle visibility -> " + visible);
-            if (browser.setVisible) browser.setVisible(visible);
+            browser.setVisible(visible);
         });
 
-        sys.log("App: All button handlers attached successfully.");
+        // Poll current URL for display
+        setInterval(() => {
+            if (browser.getURL && urlDisplay) {
+                let url = browser.getURL();
+                if (url && url.length > 0) {
+                    urlDisplay.setAttribute("text", url);
+                }
+            }
+        }, 1000);
+
+        // Listen for web messages from the page
+        browser.onMessage(function(msg) {
+            sys.log("Web message from page: " + msg);
+        });
+
+        sys.log("App: All handlers attached.");
     })();
 </script>

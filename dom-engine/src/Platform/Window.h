@@ -555,6 +555,95 @@ public:
             return DLLBridge::Call(dllName, funcName, callArgs);
         }));
 
+        // ---- sys.dllCallString (returns string from DLL instead of number) ----
+        sysObj->setProperty("dllCallString", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.size() < 3) return Value::Null();
+            std::string dllName = args[0]->toString();
+            std::string funcName = args[1]->toString();
+            std::vector<ValuePtr> callArgs;
+            if (args[2]->type == ValueType::Array) callArgs = args[2]->elements;
+            return DLLBridge::CallString(dllName, funcName, callArgs);
+        }));
+
+        // ---- sys.screenshot(filepath, x?, y?, w?, h?) ----
+        sysObj->setProperty("screenshot", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            std::string path = args.size() > 0 ? args[0]->toString() : "screenshot.bmp";
+            
+            RECT clientRect;
+            GetClientRect(g_hwnd, &clientRect);
+            int sx = args.size() > 1 ? (int)args[1]->toNumber() : 0;
+            int sy = args.size() > 2 ? (int)args[2]->toNumber() : 0;
+            int sw = args.size() > 3 ? (int)args[3]->toNumber() : (clientRect.right - clientRect.left);
+            int sh = args.size() > 4 ? (int)args[4]->toNumber() : (clientRect.bottom - clientRect.top);
+
+            HDC hdcWin = GetDC(g_hwnd);
+            HDC hdcMem = CreateCompatibleDC(hdcWin);
+            HBITMAP hbm = CreateCompatibleBitmap(hdcWin, sw, sh);
+            SelectObject(hdcMem, hbm);
+            BitBlt(hdcMem, 0, 0, sw, sh, hdcWin, sx, sy, SRCCOPY);
+
+            // Save as BMP
+            BITMAPINFOHEADER bi = {};
+            bi.biSize = sizeof(bi);
+            bi.biWidth = sw;
+            bi.biHeight = -sh; // top-down
+            bi.biPlanes = 1;
+            bi.biBitCount = 24;
+            bi.biCompression = BI_RGB;
+            int rowBytes = ((sw * 3 + 3) & ~3);
+            bi.biSizeImage = rowBytes * sh;
+
+            std::vector<unsigned char> pixels(bi.biSizeImage);
+            GetDIBits(hdcMem, hbm, 0, sh, pixels.data(), (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+
+            BITMAPFILEHEADER bf = {};
+            bf.bfType = 0x4D42;
+            bf.bfOffBits = sizeof(bf) + sizeof(bi);
+            bf.bfSize = bf.bfOffBits + bi.biSizeImage;
+
+            FILE* f = fopen(path.c_str(), "wb");
+            if (f) {
+                fwrite(&bf, sizeof(bf), 1, f);
+                fwrite(&bi, sizeof(bi), 1, f);
+                fwrite(pixels.data(), bi.biSizeImage, 1, f);
+                fclose(f);
+            }
+
+            DeleteObject(hbm);
+            DeleteDC(hdcMem);
+            ReleaseDC(g_hwnd, hdcWin);
+            return Value::Bool(f != nullptr);
+        }));
+
+        // ---- sys.getPixelColor(x?, y?) -> {r, g, b, hex} ----
+        sysObj->setProperty("getPixelColor", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            POINT pt;
+            if (args.size() >= 2) {
+                pt.x = (int)args[0]->toNumber();
+                pt.y = (int)args[1]->toNumber();
+            } else {
+                GetCursorPos(&pt);
+            }
+            HDC hdcScreen = GetDC(NULL);
+            COLORREF c = GetPixel(hdcScreen, pt.x, pt.y);
+            ReleaseDC(NULL, hdcScreen);
+
+            int r = GetRValue(c);
+            int g = GetGValue(c);
+            int b = GetBValue(c);
+            char hex[16];
+            snprintf(hex, sizeof(hex), "#%02X%02X%02X", r, g, b);
+
+            auto result = Value::Object();
+            result->setProperty("r", Value::Num(r));
+            result->setProperty("g", Value::Num(g));
+            result->setProperty("b", Value::Num(b));
+            result->setProperty("hex", Value::Str(hex));
+            result->setProperty("x", Value::Num(pt.x));
+            result->setProperty("y", Value::Num(pt.y));
+            return result;
+        }));
+
         // ---- sys.loadExtension ----
         sysObj->setProperty("loadExtension", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
             if (args.empty()) return Value::Bool(false);

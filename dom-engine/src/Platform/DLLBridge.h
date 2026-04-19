@@ -67,6 +67,52 @@ public:
         return Value::Num((double)result);
     }
 
+    // DLL call that interprets the return value as a const char* string pointer
+    static ValuePtr CallString(const std::string& dllName, const std::string& funcName,
+                               const std::vector<ValuePtr>& args) {
+        HMODULE hMod = LoadLibraryA(dllName.c_str());
+        if (!hMod) return Value::Str("Error: DLL not found.");
+
+        FARPROC proc = GetProcAddress(hMod, funcName.c_str());
+        if (!proc) return Value::Str("Error: Function not found.");
+
+        uint64_t nativeArgs[8] = { 0 };
+        std::vector<std::string> stringKeepAlive;
+
+        for (size_t i = 0; i < args.size() && i < 8; i++) {
+            auto& arg = args[i];
+            if (arg->type == ValueType::String) {
+                stringKeepAlive.push_back(arg->str);
+                nativeArgs[i] = (uint64_t)stringKeepAlive.back().c_str();
+            } else if (arg->type == ValueType::Number) {
+                nativeArgs[i] = (uint64_t)(int64_t)arg->number;
+            } else if (arg->type == ValueType::Boolean) {
+                nativeArgs[i] = arg->boolean ? 1 : 0;
+            } else {
+                nativeArgs[i] = 0;
+            }
+        }
+
+        bool exceptionThrown = false;
+        uint64_t result = SafeCall(proc, nativeArgs, exceptionThrown);
+
+        if (exceptionThrown) {
+            return Value::Str("Error: DLL Exception thrown during execution.");
+        }
+
+        const char* strResult = (const char*)result;
+        if (!strResult) return Value::Str("");
+
+        // Safe read with SEH in case the pointer is invalid
+        std::string safeStr;
+        __try {
+            safeStr = std::string(strResult);
+        } __except(EXCEPTION_EXECUTE_HANDLER) {
+            return Value::Str("Error: Invalid string pointer returned from DLL.");
+        }
+        return Value::Str(safeStr);
+    }
+
     // Load a DLL and return its handle (for repeated calls)
     static ValuePtr LoadDLL(const std::string& path) {
         HMODULE h = LoadLibraryA(path.c_str());

@@ -37,7 +37,7 @@ echo [INFO] Loading MSVC...
 call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x64 >nul
 
 echo [INFO] Compiling WebView2 Plugin...
-cl.exe /nologo /O2 /LD /MD /EHsc webview_plugin.cpp /I"sdk\build\native\include" /link /OUT:bin\webview_plugin.dll "sdk\build\native\x64\WebView2Loader.dll.lib" User32.lib Advapi32.lib Ole32.lib
+cl.exe /nologo /O2 /LD /MD /EHsc webview_plugin.cpp /I"sdk\build\native\include" /link /OUT:bin\webview_plugin.dll "sdk\build\native\x64\WebView2Loader.dll.lib" User32.lib Advapi32.lib Ole32.lib Shlwapi.lib
 
 if "%ERRORLEVEL%"=="0" (
     echo [SUCCESS] Plugin built successfully at bin\webview_plugin.dll

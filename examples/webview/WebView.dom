@@ -1,15 +1,22 @@
 <script>
-    // Internal registry tracking the global native bridge initialization
+    // ---- WebView2 Internal Boot ----
     let _webViewLoaded = false;
     window._webViewReady = false;
     window._activeWebView = null;
 
     document.addEventListener("customMessage", (e) => {
-        // Listen for the async C++ thread signaling the COM controller is active
         if (e.lParam === 999) {
             window._webViewReady = true;
             sys.log("WebView2 native controller initialized and ready!");
             document.dispatchEvent(new CustomEvent("webview_ready"));
+        }
+        if (e.lParam === 1000) {
+            // Web message received from the page
+            let msg = sys.dllCallString("webview_plugin.dll", "QueryString", [2, 0, 0, 0, 0, 0, 0, 0]);
+            if (msg && window._activeWebView && window._activeWebView._onWebMessage) {
+                window._activeWebView._onWebMessage(msg);
+            }
+            document.dispatchEvent(new CustomEvent("webview_message", { detail: msg }));
         }
     });
 </script>
@@ -19,9 +26,12 @@
 </ui>
 
 <script>
-    // ---- WebView component initialization (runs when component is instantiated) ----
+    // ============================================================================
+    // WebView Component — Full API Surface
+    // Exposes complete browser control: navigation, JS execution, messaging,
+    // content settings, lifecycle, capture, and more.
+    // ============================================================================
     (function() {
-        // The component host element is the element with tag "WebView" — find it via its id
         let self = document.getElementById("myBrowser");
         if (!self) {
             sys.log("WebView: FATAL - could not find component host element #myBrowser");
@@ -29,47 +39,160 @@
         }
         window._activeWebView = self;
 
-        // Track previous geometry to avoid redundant DLL calls
-        let lastX = -1;
-        let lastY = -1;
-        let lastW = -1;
-        let lastH = -1;
+        // ---- Geometry tracking ----
+        let lastX = -1, lastY = -1, lastW = -1, lastH = -1;
 
-        // Attach methods directly to the element wrapper
+        let DLL = "webview_plugin.dll";
+        let CMD = "ExecuteCommand";
+
+        // ---- Helpers ----
+        function cmd(id, a, b, c, d, e, f, g) {
+            return sys.dllCall(DLL, CMD, [id, a || 0, b || 0, c || 0, d || 0, e || 0, f || 0, g || 0]);
+        }
+        function query(id) {
+            cmd(id);
+            return sys.dllCallString(DLL, "QueryString", [id === 10 ? 0 : id === 11 ? 1 : 2, 0, 0, 0, 0, 0, 0, 0]);
+        }
+
+        // ========== NAVIGATION ==========
+
+        /** Navigate to a URL */
         self.navigate = function(newUrl) {
             if (!newUrl) return;
             self.setAttribute("url", newUrl);
             sys.log("WebView: Navigating to " + newUrl);
-            sys.dllCall("webview_plugin.dll", "ExecuteCommand", [2, newUrl, 0, 0, 0, 0, 0, 0]);
+            cmd(2, newUrl);
         };
 
+        /** Navigate to raw HTML content */
+        self.navigateToString = function(html) {
+            if (!window._webViewReady) return;
+            // WebView2 supports navigating to data URIs with HTML
+            self.executeScript("document.open(); document.write(" + JSON.stringify(html) + "); document.close();");
+        };
+
+        /** Reload the current page */
+        self.reload = function() { cmd(6); };
+
+        /** Stop loading */
+        self.stop = function() { cmd(7); };
+
+        /** Go back in history */
+        self.goBack = function() { cmd(8); };
+
+        /** Go forward in history */
+        self.goForward = function() { cmd(9); };
+
+        /** Get navigation state -> { canGoBack, canGoForward } */
+        self.getNavState = function() {
+            let bits = cmd(19);
+            return { canGoBack: (bits & 1) !== 0, canGoForward: (bits & 2) !== 0 };
+        };
+
+        /** Get current URL */
+        self.getURL = function() { return query(10); };
+
+        /** Get current page title */
+        self.getTitle = function() { return query(11); };
+
+        // ========== JAVASCRIPT EXECUTION ==========
+
+        /** Execute JavaScript inside the WebView page */
         self.executeScript = function(jsString) {
             if (!window._webViewReady) return;
-            sys.dllCall("webview_plugin.dll", "ExecuteCommand", [4, jsString, 0, 0, 0, 0, 0, 0]);
+            cmd(4, jsString);
         };
 
+        // ========== WEB MESSAGING (Host ↔ Page Communication) ==========
+
+        /** Post a message to the web page (page reads via window.chrome.webview.addEventListener('message', ...)) */
+        self.postMessage = function(msg) {
+            if (typeof msg === "object") msg = JSON.stringify(msg);
+            cmd(13, msg);
+        };
+
+        /** Register a callback for messages FROM the page (page sends via window.chrome.webview.postMessage(...)) */
+        self.onMessage = function(callback) {
+            self._onWebMessage = callback;
+        };
+
+        // ========== CONTENT SETTINGS ==========
+
+        /** Enable or disable JavaScript execution inside the page */
+        self.setScriptEnabled = function(enabled) { cmd(14, 0, enabled ? 1 : 0); };
+
+        /** Enable or disable web messaging */
+        self.setWebMessageEnabled = function(enabled) { cmd(14, 1, enabled ? 1 : 0); };
+
+        /** Enable or disable default script dialogs (alert/confirm/prompt) */
+        self.setDialogsEnabled = function(enabled) { cmd(14, 2, enabled ? 1 : 0); };
+
+        /** Enable or disable status bar */
+        self.setStatusBarEnabled = function(enabled) { cmd(14, 3, enabled ? 1 : 0); };
+
+        /** Enable or disable DevTools access */
+        self.setDevToolsEnabled = function(enabled) { cmd(14, 4, enabled ? 1 : 0); };
+
+        /** Enable or disable right-click context menu */
+        self.setContextMenuEnabled = function(enabled) { cmd(14, 5, enabled ? 1 : 0); };
+
+        /** Enable or disable zoom control */
+        self.setZoomEnabled = function(enabled) { cmd(14, 6, enabled ? 1 : 0); };
+
+        /** Set user agent string */
+        self.setUserAgent = function(ua) { cmd(12, ua); };
+
+        // ========== LIFECYCLE ==========
+
+        /** Set visibility of the native WebView overlay */
+        self.setVisible = function(vis) { cmd(5, vis ? 1 : 0); };
+
+        /** Open Chrome DevTools */
+        self.openDevTools = function() { cmd(15); };
+
+        /** Close and destroy the WebView instance */
+        self.close = function() { cmd(16); };
+
+        /** Suspend (reduce resource usage when hidden) */
+        self.suspend = function() { cmd(23); };
+
+        /** Resume from suspension */
+        self.resume = function() { cmd(24); };
+
+        // ========== DISPLAY ==========
+
+        /** Update native overlay position to match NativeDOM layout */
         self.updateGeometry = function() {
             let container = self.shadowDomSelector("#webview-bounds");
             if (!container) return;
             let rect = container.getBoundingRect();
             let w = rect.width > 0 ? rect.width : 500;
             let h = rect.height > 0 ? rect.height : 500;
-
-            // Only update if geometry actually changed
             if (rect.x === lastX && rect.y === lastY && w === lastW && h === lastH) return;
-            lastX = rect.x;
-            lastY = rect.y;
-            lastW = w;
-            lastH = h;
-
-            sys.dllCall("webview_plugin.dll", "ExecuteCommand", [3, rect.x, rect.y, w, h, 0, 0, 0]);
+            lastX = rect.x; lastY = rect.y; lastW = w; lastH = h;
+            cmd(3, rect.x, rect.y, w, h);
         };
 
-        self.setVisible = function(vis) {
-            sys.dllCall("webview_plugin.dll", "ExecuteCommand", [5, vis ? 1 : 0, 0, 0, 0, 0, 0, 0]);
+        /** Set zoom factor (1.0 = 100%, 1.5 = 150%, 0.5 = 50%) */
+        self.setZoom = function(factor) { cmd(17, Math.round(factor * 100)); };
+
+        /** Set the WebView background color (r, g, b, a: 0-255) */
+        self.setBackgroundColor = function(r, g, b, a) { cmd(22, r, g, b, a !== undefined ? a : 255); };
+
+        // ========== CAPTURE ==========
+
+        /** Capture the WebView content to a file (PNG or JPEG) */
+        self.capturePreview = function(filepath, format) {
+            // format: "png" or "jpeg"
+            let fmt = (format === "jpeg" || format === "jpg") ? 1 : 0;
+            cmd(20, filepath, fmt);
         };
 
-        // Default URL
+        /** Print the current page */
+        self.print = function() { cmd(18); };
+
+        // ========== INITIALIZATION ==========
+
         if (!self.getAttribute("url")) {
             self.setAttribute("url", "https://google.com");
         }
@@ -77,9 +200,9 @@
         let phase = 0;
         let tickInt = setInterval(() => {
             if (phase === 0) {
-                let success = sys.loadExtension("webview_plugin.dll");
+                let success = sys.loadExtension(DLL);
                 if (success === true) {
-                    let initRes = sys.dllCall("webview_plugin.dll", "ExecuteCommand", [1, 0, 0, 0, 0, 0, 0, 0]);
+                    let initRes = cmd(1);
                     if (initRes === 1) {
                         _webViewLoaded = true;
                         phase = 1;
@@ -89,13 +212,12 @@
                 if (window._webViewReady && window._activeWebView) {
                     phase = 2;
                     clearInterval(tickInt);
-                    sys.log("WebView: Phase 2 reached - navigating + geometry + show");
+                    sys.log("WebView: Phase 2 — navigating + geometry + show");
                     window._activeWebView.navigate(window._activeWebView.getAttribute("url"));
                     window._activeWebView.updateGeometry();
                     window._activeWebView.setVisible(true);
 
-                    // Start continuous geometry tracking (handles window resize/layout changes)
-                    // Runs every frame (~16ms) but only sends DLL calls when geometry changes
+                    // Continuous geometry tracking (~60fps, dirty-checked)
                     setInterval(() => {
                         if (window._webViewReady && window._activeWebView) {
                             window._activeWebView.updateGeometry();

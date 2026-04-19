@@ -47,6 +47,58 @@ This document details the methods and properties available for manipulating the 
 *   `el.focus()`, `el.blur()`
     Grants or removes UI interaction focus. Focus applies `:focused` CSS state globally.
 
+### Component Scriptable Methods (self.* Pattern)
+
+NativeDOM does **not** support ES6 `class` syntax. Instead, components define publicly accessible methods by attaching functions directly to their element wrapper. This is possible because **element wrappers are cached** — calling `document.getElementById("myId")` anywhere in any script returns the **exact same object reference**.
+
+**Defining Methods (inside the component):**
+```javascript
+(function() {
+    let self = document.getElementById("myComponent");
+    
+    // Public API — accessible from parent scripts
+    self.doSomething = function(value) {
+        sys.log("Called with: " + value);
+        self.setAttribute("data-result", value);
+    };
+    
+    self.getData = function() {
+        return self.getAttribute("data-value");
+    };
+    
+    // Internal state (closure-scoped, not visible outside)
+    let internalCounter = 0;
+    self.increment = function() {
+        internalCounter++;
+        return internalCounter;
+    };
+})();
+```
+
+**Calling Methods (from the parent app):**
+```javascript
+(function() {
+    let comp = document.getElementById("myComponent");
+    comp.doSomething("hello");     // Works — same wrapper object
+    let val = comp.getData();       // Returns the attribute value
+    sys.log(comp.increment());      // Prints "1"
+    sys.log(comp.increment());      // Prints "2"
+})();
+```
+
+**Why This Works:** NativeDOM maintains an internal `elementCache` map. The first time an element is wrapped for JS access, a wrapper object is created with all the built-in methods (`setAttribute`, `addEventListener`, etc.). This wrapper is stored in the cache keyed by the element pointer. Subsequent lookups return the same wrapper, so any custom properties (functions) you attach to it persist across all script blocks.
+
+**Shadow DOM Access:** Components can query their own shadow children using `self.shadowDomSelector(selector)`, which searches within the component's shadow tree:
+```javascript
+let self = document.getElementById("myWidget");
+let innerBtn = self.shadowDomSelector("#internal-button");
+if (innerBtn) {
+    innerBtn.addEventListener("click", () => {
+        sys.log("Internal button clicked!");
+    });
+}
+```
+
 ---
 
 ## Layout & Positioning

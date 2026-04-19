@@ -25,8 +25,16 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
     Performs an immediate blocking overwrite stream out to the given file path.
 *   `sys.loadScript(filepath: string, asNewProcess: bool=false)`
     Hot-loads and parses an external `.dom` context map directly into memory. If `asNewProcess` is true, the file spins up completely isolated inside a cloned `dom.exe` child fork.
-*   `sys.dllCall(dll: string, func: string, args: Array) -> auto`
-    Internal bridge for unsafe Foreign Function Interfaces. Invokes arbitrary dynamically resolved Windows `.dll` logic mapping basic JS strings/numbers to C ABI targets. **Protected by native Structured Exception Handling (SEH)**, meaning if the external DLL completely crashes, NativeDOM gracefully catches the hardware exception and returns an error string instead of crashing your UI! This makes calling external crypto/compression methods incredibly robust and fail-safe.
+*   `sys.dllCall(dll: string, func: string, args: Array) -> number`
+    Internal bridge for unsafe Foreign Function Interfaces. Invokes arbitrary dynamically resolved Windows `.dll` logic mapping basic JS strings/numbers to C ABI targets. Returns a numeric value (the uint64 return from the C function). **Protected by native Structured Exception Handling (SEH)**, meaning if the external DLL completely crashes, NativeDOM gracefully catches the hardware exception and returns an error string instead of crashing your UI! This makes calling external crypto/compression methods incredibly robust and fail-safe.
+*   `sys.dllCallString(dll: string, func: string, args: Array) -> string`
+    Identical to `sys.dllCall`, but interprets the DLL's return value as a `const char*` string pointer instead of a number. Use this when the DLL function returns a string (e.g., `QueryString` from the WebView2 plugin). The pointer is safely dereferenced using SEH protection.
+    ```javascript
+    // Example: Reading a URL string from the WebView2 plugin
+    sys.dllCall("webview_plugin.dll", "ExecuteCommand", [10, 0, 0, 0, 0, 0, 0, 0]);
+    let url = sys.dllCallString("webview_plugin.dll", "QueryString", [0, 0, 0, 0, 0, 0, 0, 0]);
+    sys.log("Current URL: " + url);
+    ```
 *   `sys.loadExtension(dllPath: string) -> bool`
     Advanced engine feature for loading comprehensive C++ extensions (e.g. video player tools, networking layers, WebView2 embeds, or cryptography suites). Loads the DLL, probes for a `NativeDOM_Init` export, and hands it the NativeDOM execution pointers safely.
 *   `sys.sendMessage(hwnd: number, msg: number, wParam: number, lParam: number)`
@@ -74,6 +82,26 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
     ```
 *   `sys.window.unregisterHotkey(id: number)`
     Releases the global DWM lock over the bound keys.
+
+---
+
+## Screenshot & Pixel Tools
+
+*   `sys.screenshot(filepath?: string, x?: number, y?: number, w?: number, h?: number) -> bool`
+    Captures the NativeDOM application window to a BMP file using `BitBlt`. If no region is specified, captures the entire client area.
+    ```javascript
+    sys.screenshot("full_window.bmp");           // Entire window
+    sys.screenshot("region.bmp", 50, 50, 200, 150);  // Specific region
+    ```
+*   `sys.getPixelColor(x?: number, y?: number) -> {r, g, b, hex, x, y}`
+    Returns the pixel color at the given screen coordinates. If no coordinates are provided, uses the current cursor position. Useful for color picker tools, design utilities, and automated testing.
+    ```javascript
+    let px = sys.getPixelColor();       // Under cursor
+    sys.log(px.hex);                     // "#FF6600"
+    sys.log(px.r + ", " + px.g + ", " + px.b);  // "255, 102, 0"
+    
+    let px2 = sys.getPixelColor(500, 300);  // Specific coords
+    ```
 
 ---
 
