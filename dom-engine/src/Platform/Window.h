@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <dwmapi.h>
 #include "../Core/Value.h"
+#include "COMBridge.h"
 
 extern HWND g_hwnd;
 
@@ -643,6 +644,29 @@ public:
             result->setProperty("y", Value::Num(pt.y));
             return result;
         }));
+
+        // ---- sys.com ---- (COM/OLE Automation bridge)
+        auto comObj = Value::Object();
+
+        // sys.com.create(progId) -> wrapped COM object
+        comObj->setProperty("create", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Null();
+            return COMBridge::CreateObject(args[0]->toString());
+        }));
+
+        // sys.com.getActive(progId) -> wrapped running COM object
+        comObj->setProperty("getActive", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Null();
+            return COMBridge::GetObject(args[0]->toString());
+        }));
+
+        // sys.com.releaseAll() -> cleanup all COM objects
+        comObj->setProperty("releaseAll", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            COMBridge::ReleaseAll();
+            return Value::Undefined();
+        }));
+
+        sysObj->setProperty("com", comObj);
 
         // ---- sys.loadExtension ----
         sysObj->setProperty("loadExtension", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {

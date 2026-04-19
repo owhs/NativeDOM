@@ -40,6 +40,9 @@ const HOVER_DOCS: Record<string, string> = {
     'sys.getHwnd': '### `sys.getHwnd() → number`\n\nReturns this application\'s HWND.',
     'sys.screenshot': '### `sys.screenshot(path?, x?, y?, w?, h?) → bool`\n\nCaptures the window to a BMP file via `BitBlt`.',
     'sys.getPixelColor': '### `sys.getPixelColor(x?, y?) → {r, g, b, hex, x, y}`\n\nReturns pixel color at coordinates (or cursor position).',
+    'sys.com.create': '### `sys.com.create(progId: string) → object`\n\nInstantiates a new COM object (via `CoCreateInstance`). Returns a wrapped NativeDOM object with methods: `.call(method, ...args)`, `.get(prop, ...indexes)`, `.set(prop, value)`, and `.release()`.',
+    'sys.com.getActive': '### `sys.com.getActive(progId: string) → object`\n\nGets an active, running COM object (via `GetActiveObject`).',
+    'sys.com.releaseAll': '### `sys.com.releaseAll()`\n\nReleases all COM objects instantiated or retrieved by scripts. You should call this before exit to ensure proper cleanup.',
 
     // DOM API
     'document.querySelector': '### `document.querySelector(selector) → Element?`\n\nReturns first matching element in the light DOM.',

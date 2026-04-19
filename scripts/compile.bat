@@ -7,7 +7,7 @@ setlocal EnableDelayedExpansion
 :: ============================================================================
 
 set COMPILER_FLAGS=/nologo /EHs-c- /std:c++17 /wd4530
-set LINKER_FLAGS=/link User32.lib Gdi32.lib opengl32.lib Shell32.lib
+set LINKER_FLAGS=/link User32.lib Gdi32.lib opengl32.lib Shell32.lib ole32.lib oleaut32.lib
 set ENTRY_FILE=dom-engine/main.cpp
 set OUT_EXE=dom.exe
 
@@ -30,7 +30,7 @@ goto arg_loop
 if "!MIN_BUILD!"=="1" (
     echo [INFO] Minimized release build
     set COMPILER_FLAGS=!COMPILER_FLAGS! /O1 /Os /GL /MD /GS- /Gw /Gy /Zc:inline /GR-
-    set LINKER_FLAGS=/link /LTCG /OPT:REF /OPT:ICF /MERGE:.rdata=.text /MERGE:.pdata=.text /FILEALIGN:512 /SUBSYSTEM:WINDOWS User32.lib Gdi32.lib opengl32.lib Shell32.lib
+    set LINKER_FLAGS=/link /LTCG /OPT:REF /OPT:ICF /MERGE:.rdata=.text /MERGE:.pdata=.text /FILEALIGN:512 /SUBSYSTEM:WINDOWS User32.lib Gdi32.lib opengl32.lib Shell32.lib ole32.lib oleaut32.lib
 ) else if "!DEBUG_BUILD!"=="1" (
     echo [INFO] Debug build with console
     set COMPILER_FLAGS=!COMPILER_FLAGS! /Od /Zi /MDd

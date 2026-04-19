@@ -369,6 +369,7 @@ export class DomCompletionProvider implements vscode.CompletionItemProvider {
                 { name: 'screen', desc: 'Screen information APIs', sig: 'sys.screen.*' },
                 { name: 'keyboard', desc: 'Keyboard hook APIs', sig: 'sys.keyboard.*' },
                 { name: 'clipboard', desc: 'Clipboard APIs', sig: 'sys.clipboard.*' },
+                { name: 'com', desc: 'COM/OLE Automation APIs', sig: 'sys.com.*' },
             ];
             for (const m of sysMembers) {
                 const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
@@ -447,6 +448,20 @@ export class DomCompletionProvider implements vscode.CompletionItemProvider {
                 { name: 'clear', sig: 'clear()' },
                 { name: 'getFormat', sig: 'getFormat(id) → number[]' },
                 { name: 'setFormat', sig: 'setFormat(id, buffer)' },
+            ]) {
+                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
+                item.detail = m.sig;
+                items.push(item);
+            }
+            return items;
+        }
+
+        // sys.com.* completions
+        if (textBefore.endsWith('sys.com.')) {
+            for (const m of [
+                { name: 'create', sig: 'create(progId) → object' },
+                { name: 'getActive', sig: 'getActive(progId) → object' },
+                { name: 'releaseAll', sig: 'releaseAll()' },
             ]) {
                 const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
                 item.detail = m.sig;
