@@ -63,7 +63,7 @@ if "%OPT%"=="3" set "BUILD_ARGS=debug"
 
 echo.
 echo %GREEN%Launching compile.bat !BUILD_ARGS!%RESET%
-call compile.bat !BUILD_ARGS!
+call scripts\compile.bat !BUILD_ARGS!
 pause
 goto :MainMenu
 
@@ -120,7 +120,7 @@ if not "!USE_RC4!"=="" set B_ARGS=!B_ARGS! -rc4="!USE_RC4!"
 echo.
 echo %GREEN%Executing configuration:%RESET% %WHITE%bundle.bat !B_ARGS!%RESET%
 echo.
-call bundle.bat !B_ARGS!
+call scripts\bundle.bat !B_ARGS!
 pause
 goto :MainMenu
 

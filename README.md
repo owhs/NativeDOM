@@ -7,7 +7,7 @@ A lightweight C++ custom UI framework with a built-in JS-like scripting engine.
 You can use the unified interactive Builder Tool to compile, bundle, and clean your workspace seamlessly!
 
 ```bat
-.\DOM.bat
+.\build.bat
 ```
 
 Alternatively, run the legacy CLI scripts manually:
@@ -33,7 +33,7 @@ This embeds `dom.exe` and your javascript natively inside a standalone executabl
 - **Ahead-of-Time (AOT)**: Generates raw C++ hardware-level execution logic for UI instantiation. Drastically drops footprint and reduces boot times to milliseconds.
 - **LZNT1 / RC4 Compression**: Compresses or Secures DOM hierarchies for embedded deployments.
 
-Use the `[2]` route inside `DOM.bat` to step through the graphical compilation steps to configure this safely.
+Use the `[2]` route inside `build.bat` to step through the graphical compilation steps to configure this safely.
 
 ## .dom File Format
 

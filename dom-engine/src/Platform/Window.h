@@ -210,6 +210,45 @@ public:
             return Value::Undefined();
         }));
 
+        windowObj->setProperty("setFullscreen", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            bool enter = true;
+            if(!args.empty()) enter = args[0]->isTruthy();
+            static DWORD savedExStyle;
+            static DWORD savedStyle;
+            static RECT savedRect;
+            static bool isFullscreen = false;
+
+            if (enter && !isFullscreen) {
+                savedExStyle = dynAPI._GetWindowLongA(g_hwnd, GWL_EXSTYLE);
+                savedStyle = dynAPI._GetWindowLongA(g_hwnd, GWL_STYLE);
+                GetWindowRect(g_hwnd, &savedRect);
+
+                dynAPI._SetWindowLongA(g_hwnd, GWL_STYLE, savedStyle & ~(WS_CAPTION | WS_THICKFRAME));
+                dynAPI._SetWindowLongA(g_hwnd, GWL_EXSTYLE, savedExStyle & ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
+
+                HMONITOR hMon = MonitorFromWindow(g_hwnd, MONITOR_DEFAULTTONEAREST);
+                MONITORINFO mi = { sizeof(mi) };
+                if (GetMonitorInfoA(hMon, &mi)) {
+                    SetWindowPos(g_hwnd, HWND_TOP, 
+                        mi.rcMonitor.left, mi.rcMonitor.top,
+                        mi.rcMonitor.right - mi.rcMonitor.left,
+                        mi.rcMonitor.bottom - mi.rcMonitor.top,
+                        SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                }
+                isFullscreen = true;
+            } else if (!enter && isFullscreen) {
+                dynAPI._SetWindowLongA(g_hwnd, GWL_STYLE, savedStyle);
+                dynAPI._SetWindowLongA(g_hwnd, GWL_EXSTYLE, savedExStyle);
+                SetWindowPos(g_hwnd, NULL,
+                    savedRect.left, savedRect.top,
+                    savedRect.right - savedRect.left,
+                    savedRect.bottom - savedRect.top,
+                    SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                isFullscreen = false;
+            }
+            return Value::Undefined();
+        }));
+
         windowObj->setProperty("hide", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
             ShowWindow(g_hwnd, SW_HIDE);
             return Value::Undefined();

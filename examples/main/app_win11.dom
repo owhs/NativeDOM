@@ -19,8 +19,7 @@
         isFullscreen = !isFullscreen;
         document.getElementById("app").setAttribute("fullscreen", isFullscreen ? "true" : "false");
         e.target.setAttribute("text", isFullscreen ? "Exit Full Screen" : "Go Full Screen");
-        if (!sys.window.isMaximized()) sys.window.maximize();
-        else { sys.window.restore(); sys.window.maximize(); } // Force re-eval
+        sys.window.setFullscreen(isFullscreen);
     });
 
     document.getElementById("toggleMode").addEventListener("click", function() { 
