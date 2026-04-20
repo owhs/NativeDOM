@@ -111,6 +111,11 @@
                 <div id="btnWiFi" class="btn" width="140">Get WiFi Nets</div>
                 <div id="btnNotepad" class="btn-secondary" width="160">Type in Notepad</div>
             </div>
+
+            <div layout="row" gap="10" width="100%" height="34">
+                <div id="btnComTest" class="btn" width="140">Type Native Text</div>
+                <div id="btnNotification" class="btn-secondary" width="160">Show Toast Notification</div>
+            </div>
         </div>
 
         <!-- Output Log -->
@@ -313,11 +318,25 @@
         let shell = sys.com.create("WScript.Shell");
         if (shell) {
             shell.call("Run", "notepad.exe");
-            sys.dllCall("Kernel32.dll", "Sleep", [ 600 ]); // Pause to let UI spawn and focus
-            //sys.sleep(600);
+            //sys.dllCall("Kernel32.dll", "Sleep", [ 600 ]); // Pause to let UI spawn and focus
+            sys.sleep(600);
             shell.call("SendKeys", "NativeDOM Automation Interop is completely functional! ~~~ ");
             shell.release();
         }
+    });
+
+    document.getElementById("btnComTest").addEventListener("click", function() {
+        let shell = sys.com.create("WScript.Shell");
+        if (shell) {
+            shell.call("Run", "notepad.exe");
+            sys.sleep(600);
+            sys.keyboard.sendText("NativeDOM sendText is completely flawless! ~~~{}[]");
+            shell.release();
+        }
+    });
+
+    document.getElementById("btnNotification").addEventListener("click", function() {
+        sys.window.showNotification("NativeDOM", "Automation Interop successfully generated a native desktop tray balloon!");
     });
 
     document.getElementById("btnClear").addEventListener("click", function() {

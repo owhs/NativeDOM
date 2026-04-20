@@ -132,7 +132,7 @@
     "prefix": "dom-ui",
     "description": "NativeDOM root <ui> element with common attributes",
     "body": [
-      "<ui frameless=\"${1:true}\" id=\"${2:app}\" title=\"${3:App Title}\" width=\"${4:800}\" height=\"${5:600}\" bg=\"${6:#1E1E2E}\">",
+      "<ui frameless=\"${1:true}\" id=\"${2:app}\" title=\"${3:App Title}\" width=\"${4:800}\" height=\"${5:600}\" bg=\"${6:#1E1E2E}\" instances=\"${7|allow,focusIfOpen,forceReplace,warn|}\" uac=\"${8|optional,required|}\">",
       "    $0",
       "</ui>"
     ]
@@ -255,6 +255,34 @@
     "description": "NativeDOM sys.log()",
     "body": [
       "sys.log(${1:\"message\"});"
+    ]
+  },
+
+  "Sys Sleep": {
+    "prefix": "dom-sleep",
+    "description": "NativeDOM Synchronous Thread Sleep",
+    "body": [
+      "sys.sleep(${1:500});"
+    ]
+  },
+
+  "Sys Wait For Window": {
+    "prefix": "dom-waitforwindow",
+    "description": "NativeDOM wait for external Window / Process visually",
+    "body": [
+      "sys.waitForWindow(\"${1:notepad.exe}\", function(found) {",
+      "    if (found) {",
+      "        $0",
+      "    }",
+      "});"
+    ]
+  },
+
+  "Sys Window Focus": {
+    "prefix": "dom-windowfocus",
+    "description": "NativeDOM OS Target Window Focus",
+    "body": [
+      "sys.window.focus(\"${1:Process Name}\");"
     ]
   },
 

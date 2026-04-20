@@ -1,17 +1,33 @@
 # System API
 
-The `sys` object binds raw Operating System (OS) APIs directly into the NativeDOM custom Javascript environment.
+The NativeDOM engine possesses a massive, bespoke Standard Library exposing Win32 internals, COM abstractions, asynchronous routines, and native threading block logic directly to standard Javascript closures!
 
 ## Table of Contents
-1. [System Core (sys.*)](#system-core-sys)
-2. [Window Management (sys.window.*)](#window-management-syswindow)
-3. [Screen & Inputs](#screen--inputs)
-4. [COM Objects (sys.com.*)](#com-objects-syscom)
-5. [C++ Extensions API](#c-extensions-api)
+1. [Core OS & Asynchronous Helpers](#core-os--asynchronous-helpers)
+2. [Global Application Configuration (XML Properties)](#global-application-configuration)
+3. [Window Management (sys.window.*)](#window-management-syswindow)
+4. [Screen & Inputs](#screen--inputs)
+5. [COM Objects (sys.com.*)](#com-objects-syscom)
+6. [C++ Extensions API](#c-extensions-api)
 
 ---
 
-## System Core (sys.*)
+## Global Application Configuration
+NativeDOM permits incredibly powerful OS-level instructions natively in your root boot payload via attributes on the `<ui>` declaration! These parse via C++ inherently bypassing Javascript loops:
+*   `instances`
+    Configures OS-level `CreateMutexA` threading lock behavior for application duplicate handling:
+    - `"allow"`: (Default) Unbounded duplicates run parallel.
+    - `"focusIfOpen"`: Terminates duplicate startup execution naturally locking a mutex, forcing priority rendering focus upward cleanly on the pre-existing DOM.
+    - `"warn"`: Gracefully yields a Message Box querying user intent. Falls through to `forceReplace`. 
+    - `"forceReplace"`: Fires a `SendMessage` SIGKILL IPC target terminating legacy DOMs directly, inheriting the mutex perfectly natively!
+*   `uac`
+    Configures User Access Control elevation triggers:
+    - `"optional"`: Standard.
+    - `"required"`: Probes OS TokenElevation on C++ constructor boot logic. Forces a `ShellExecuteA(runas)` administrative OS overlay and tears down unprivileged processes autonomously prior to engine mapping!
+
+---
+
+## Core OS & Asynchronous Helpers
 
 *   `sys.log(msg: string)`
     Prints output to the console (`stdout`), pushes it to the Windows Visual Studio `OutputDebugString` pipe, and appends it iteratively into `sys_log.txt` locally.
@@ -19,8 +35,14 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
     A global suppression toggle. `sys.setLogEnabled(false)` completely halts all system logging pipelines for pristine console control.
 *   `sys.time() -> number`
     Microsecond-bound system uptime resolution. Invokes `GetTickCount64()`.
+*   `sys.sleep(ms: number)`
+    Synchronously forces the central underlying NativeDOM C++ execution OS Thread to halt operations blockingly for exact intervals explicitly (avoiding confusing `Kernel32.dll` manual memory mappings!).
 *   `sys.exec(cmd: string, hidden: bool=false) -> number`
-    Forks a new native Windows sub-process using standard `CreateProcess`. The boolean parameter controls if the window operates in `SW_HIDE` mode. Returns the active Process ID.
+    Forks a natively isolated CMD stream parsing straight Win32 logic via `CreateProcessA`. Set `hidden=true` to force a `SW_HIDE` structure, blocking annoying Windows generic box flashes! (Contrast this vs `sys.com.create("WScript.Shell")` stream captures which lock standard JS thread buffers naturally).
+*   `sys.isCompiled() -> bool`
+    Parses against the AOT Engine macro payload tracking logic, letting scripts branch logic out against `.exe` vs raw `.dom` deployments natively.
+*   `sys.waitForWindow(target: string, callback: function, timeoutMs?: number, pollTickMs?: number)`
+    An incredibly powerful native wrapper polyfilling deep integration mapping! Asynchronously polls standard OS hooks looking to lock window availability and executes the underlying standard closure upon execution naturally without hanging UI painting blocks! 
 *   `sys.readText(filepath: string) -> string`
     Performs an immediate blocking read of the given generic file path. Output is parsed entirely as UTF-8.
 *   `sys.writeText(filepath: string, data: string)`
@@ -46,10 +68,21 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
 *   `sys.getHwnd() -> number`
     Returns the Native DOM application's core memory handle mapping (`HWND`), letting you dispatch native procedures targeting your application's frame buffer!
 
+### Asynchronous Closures
+NativeDOM correctly structures loops to inherently map AST pointers straight to internal 16-Millisecond render ticks (`WM_TIMER` dispatch block)!
+*   `setInterval(callback: function, ms: number) -> handle`
+*   `clearInterval(handle: number)`
+*   `setTimeout(callback: function, ms: number) -> handle`
+*   `clearTimeout(handle: number)`
+
 ---
 
 ## Window Management (sys.window.*)
 
+*   `sys.window.find(title: string) -> number`
+    Queries arbitrary generic external windows by checking deep `FindWindowA` OS boundaries natively without COM locks.
+*   `sys.window.focus(processNameOrHwnd: string|number) -> bool`
+    Forcefully intercepts execution order routines shifting absolute `SetForegroundWindow` visual OS level targets automatically.
 *   `sys.window.resize(w: number, h: number)` / `sys.window.move(x: number, y: number)` / `sys.window.center()`
     Immediately repaints and adjusts the coordinate box of the master window frame.
 *   `sys.window.hide()` / `sys.window.show()`

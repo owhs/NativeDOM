@@ -31,13 +31,45 @@ class DOMParser {
     }
 
 public:
-    static inline std::string globalScripts;
+    static inline std::string globalScripts = R"(
+        sys.waitForWindow = function(target, callback, timeoutMs, pollTickMs) {
+            let start = sys.time();
+            let timer = setInterval(function() {
+                if (sys.time() - start >= (timeoutMs || 5000)) {
+                    clearInterval(timer);
+                    if (callback) callback(false);
+                    return;
+                }
+                let hwnd = sys.window.find(target);
+                if (hwnd) {
+                    clearInterval(timer);
+                    if (callback) callback(true);
+                }
+            }, pollTickMs || 100);
+        };
+    )";
 
     // Reset state for fresh parse
     static void Reset() {
         globalCssRules.clear();
         componentRegistry.clear();
-        globalScripts.clear();
+        globalScripts = R"(
+        sys.waitForWindow = function(target, callback, timeoutMs, pollTickMs) {
+            let start = sys.time();
+            let timer = setInterval(function() {
+                if (sys.time() - start >= (timeoutMs || 5000)) {
+                    clearInterval(timer);
+                    if (callback) callback(false);
+                    return;
+                }
+                let hwnd = sys.window.find(target);
+                if (hwnd) {
+                    clearInterval(timer);
+                    if (callback) callback(true);
+                }
+            }, pollTickMs || 100);
+        };
+    )";
     }
 
     static std::string UnescapeXML(const std::string& str) {

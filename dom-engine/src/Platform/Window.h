@@ -245,6 +245,30 @@ public:
             return Value::Bool(IsZoomed(g_hwnd));
         }));
 
+        windowObj->setProperty("find", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Null();
+            std::string target = args[0]->toString();
+            HWND found = FindWindowA(NULL, target.c_str());
+            return found ? Value::Num((double)(uintptr_t)found) : Value::Null();
+        }));
+
+        windowObj->setProperty("focus", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            HWND targetWnd = NULL;
+            if (args[0]->type == ValueType::Number) {
+                targetWnd = (HWND)(uintptr_t)args[0]->toNumber();
+            } else {
+                targetWnd = FindWindowA(NULL, args[0]->toString().c_str());
+            }
+
+            if (targetWnd) {
+                ShowWindow(targetWnd, SW_RESTORE);
+                SetForegroundWindow(targetWnd);
+                return Value::Bool(true);
+            }
+            return Value::Bool(false);
+        }));
+
         windowObj->setProperty("setIcon", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
             if (args.empty()) return Value::Undefined();
             std::string path = args[0]->toString();
@@ -259,6 +283,26 @@ public:
         windowObj->setProperty("restore", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
             ShowWindow(g_hwnd, SW_RESTORE);
             return Value::Undefined();
+        }));
+
+        windowObj->setProperty("showNotification", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.size() < 2) return Value::Undefined();
+            std::string title = args[0]->toString();
+            std::string msg = args[1]->toString();
+            NOTIFYICONDATAA nid = {};
+            nid.cbSize = sizeof(nid);
+            nid.hWnd = g_hwnd;
+            nid.uID = 1001;
+            nid.uFlags = NIF_INFO | NIF_ICON;
+            nid.hIcon = LoadIcon(NULL, IDI_INFORMATION);
+            strncpy_s(nid.szInfoTitle, title.c_str(), sizeof(nid.szInfoTitle) - 1);
+            strncpy_s(nid.szInfo, msg.c_str(), sizeof(nid.szInfo) - 1);
+            nid.dwInfoFlags = NIIF_INFO;
+            
+            if (!Shell_NotifyIconA(NIM_MODIFY, &nid)) {
+                Shell_NotifyIconA(NIM_ADD, &nid);
+            }
+            return Value::Bool(true);
         }));
 
         windowObj->setProperty("setFullscreen", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
@@ -498,8 +542,36 @@ public:
             }
             g_keyboardHookCallback = nullptr;
             g_keyboardHookInterp = nullptr;
+            return Value::Undefined();
+        }));
+
+        keyboardObj->setProperty("sendText", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            std::string text = args[0]->toString();
+            int wlen = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, NULL, 0);
+            if (wlen > 0) {
+                std::wstring wtext(wlen, 0);
+                MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, &wtext[0], wlen);
+                
+                std::vector<INPUT> inputs;
+                for (size_t i = 0; i < wlen - 1; i++) {
+                    INPUT in = {0};
+                    in.type = INPUT_KEYBOARD;
+                    in.ki.wScan = wtext[i];
+                    in.ki.dwFlags = KEYEVENTF_UNICODE;
+                    inputs.push_back(in);
+                    
+                    INPUT inUp = {0};
+                    inUp.type = INPUT_KEYBOARD;
+                    inUp.ki.wScan = wtext[i];
+                    inUp.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+                    inputs.push_back(inUp);
+                }
+                if (!inputs.empty()) SendInput((UINT)inputs.size(), inputs.data(), sizeof(INPUT));
+            }
             return Value::Bool(true);
         }));
+
         sysObj->setProperty("keyboard", keyboardObj);
 
         // ---- sys.clipboard ----
