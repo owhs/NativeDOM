@@ -28,6 +28,8 @@ Welcome to the comprehensive NativeDOM documentation map. Everything you need to
 *   Direct Screen monitor data (`sys.screen.*`).
 *   Extremely low-level Thread Hooking for Kernel level key interception (`sys.keyboard.hook`).
 *   Binary Clipboard data manipulation (`sys.clipboard.*`).
+*   **COM/OLE Object Integration** for scripting ActiveX and OS components natively (`sys.com.*`).
+*   See the **[WebView2 Integration Guide](docs/webview2_integration.md)** for embedding modern browser components.
 
 ### [4. Scripting Standard Library](docs/scripting_standard_library.md)
 *   Exhaustive mapping of built-in `Math` modules.

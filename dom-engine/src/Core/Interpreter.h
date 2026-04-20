@@ -135,6 +135,18 @@ public:
         );
     }
 
+    int addTimer(ValuePtr callback, std::vector<ValuePtr> args, int delayMs, bool repeat) {
+        AsyncTask t;
+        t.callback = callback;
+        t.args = args;
+        t.delayMs = delayMs;
+        t.triggerTime = GetTickCount64() + delayMs;
+        t.repeat = repeat;
+        t.id = nextTimerId++;
+        asyncQueue.push_back(t);
+        return t.id;
+    }
+
 private:
     void doLog(const std::string& msg) {
         if (logCallback) logCallback(msg);

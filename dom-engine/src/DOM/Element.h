@@ -564,16 +564,23 @@ public:
     virtual void Layout(int px, int py) {
         if (GetRaw("display") == "none") { w = 0; h = 0; return; }
 
+        int pPadL = shadowHost ? shadowHost->GetInt("padding-left", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-left", parent->GetInt("padding", 0)) : 0);
+        int pPadR = shadowHost ? shadowHost->GetInt("padding-right", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-right", parent->GetInt("padding", 0)) : 0);
+        int pPadT = shadowHost ? shadowHost->GetInt("padding-top", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-top", parent->GetInt("padding", 0)) : 0);
+        int pPadB = shadowHost ? shadowHost->GetInt("padding-bottom", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-bottom", parent->GetInt("padding", 0)) : 0);
+
         std::string wStr = Get("width");
         if (!wStr.empty() && wStr.back() == '%') {
             float pct = strtof(wStr.substr(0, wStr.size() - 1).c_str(), nullptr) / 100.0f;
-            w = (int)((shadowHost ? shadowHost->w : (parent ? parent->w : w)) * pct);
+            float pWidth = shadowHost ? shadowHost->w : (parent ? parent->w : w);
+            w = (int)((pWidth - pPadL - pPadR) * pct);
         } else w = GetInt("width", w);
 
         std::string hStr = Get("height");
         if (!hStr.empty() && hStr.back() == '%') {
             float pct = strtof(hStr.substr(0, hStr.size() - 1).c_str(), nullptr) / 100.0f;
-            h = (int)((shadowHost ? shadowHost->h : (parent ? parent->h : h)) * pct);
+            float pHeight = shadowHost ? shadowHost->h : (parent ? parent->h : h);
+            h = (int)((pHeight - pPadT - pPadB) * pct);
         } else h = GetInt("height", h);
 
         int minW = GetInt("min-width", -1);
@@ -587,21 +594,26 @@ public:
         if (maxH != -1 && h > maxH) h = maxH;
 
         if (!GetRaw("right").empty()) {
-            x = px + (shadowHost ? shadowHost->w : (parent ? parent->w : 0)) - w - GetInt("right");
+            float pWidth = shadowHost ? shadowHost->w : (parent ? parent->w : 0);
+            x = px + pWidth - pPadL - pPadR - w - GetInt("right");
         } else {
             x = px + GetInt("x");
         }
 
         if (!GetRaw("bottom").empty()) {
-            y = py + (shadowHost ? shadowHost->h : (parent ? parent->h : 0)) - h - GetInt("bottom");
+            float pHeight = shadowHost ? shadowHost->h : (parent ? parent->h : 0);
+            y = py + pHeight - pPadT - pPadB - h - GetInt("bottom");
         } else {
             y = py + GetInt("y");
         }
 
         auto doLayoutList = [&](std::vector<std::shared_ptr<Element>>& list) {
+            int myPadL = GetInt("padding-left", GetInt("padding", 0));
+            int myPadT = GetInt("padding-top", GetInt("padding", 0));
+            
             std::string layout = Get("layout", "absolute");
             if (layout == "absolute") {
-                for (auto& c : list) c->Layout(x, y);
+                for (auto& c : list) c->Layout(x + myPadL, y + myPadT);
                 return;
             }
 
@@ -615,7 +627,7 @@ public:
                     c->Layout(0, 0); // silently layout hidden
                     continue;
                 }
-                c->Layout(x, y); // baseline calc given parent's x/y to resolve % widths
+                c->Layout(x + myPadL, y + myPadT); // baseline calc given parent's bounds
                 views.push_back(c);
                 if (layout == "row") totalW += c->w + gap;
                 if (layout == "col") totalH += c->h + gap;
@@ -626,22 +638,27 @@ public:
                 if (layout == "col") totalH -= gap;
             }
 
+            int padR = GetInt("padding-right", GetInt("padding", 0));
+            int padB = GetInt("padding-bottom", GetInt("padding", 0));
+            float innerW = w - myPadL - padR;
+            float innerH = h - myPadT - padB;
+
             // Calculate start positions
             std::string justify = Get("justify", "start");
-            float cx = x, cy = y;
+            float cx = x + myPadL, cy = y + myPadT;
             float spacing = gap;
 
             if (layout == "row") {
-                if (justify == "center") cx += (w - totalW) / 2.0f;
-                else if (justify == "end" || justify == "right") cx += (w - totalW);
+                if (justify == "center") cx += (innerW - totalW) / 2.0f;
+                else if (justify == "end" || justify == "right") cx += (innerW - totalW);
                 else if (justify == "space-between" && views.size() > 1) {
-                    spacing = (float)(w - (totalW - gap * (views.size() - 1))) / (views.size() - 1);
+                    spacing = (float)(innerW - (totalW - gap * (views.size() - 1))) / (views.size() - 1);
                 }
             } else if (layout == "col") {
-                if (justify == "center") cy += (h - totalH) / 2.0f;
-                else if (justify == "end" || justify == "bottom") cy += (h - totalH);
+                if (justify == "center") cy += (innerH - totalH) / 2.0f;
+                else if (justify == "end" || justify == "bottom") cy += (innerH - totalH);
                 else if (justify == "space-between" && views.size() > 1) {
-                    spacing = (float)(h - (totalH - gap * (views.size() - 1))) / (views.size() - 1);
+                    spacing = (float)(innerH - (totalH - gap * (views.size() - 1))) / (views.size() - 1);
                 }
             }
 
@@ -660,12 +677,12 @@ public:
                 // Handle cross-axis alignment natively for easy vertically centered rows
                 std::string align = Get("align", "start");
                 if (layout == "row") {
-                    if (align == "center") c->y += (h - c->h) / 2;
-                    else if (align == "end" || align == "bottom") c->y += (h - c->h);
+                    if (align == "center") c->y += (innerH - c->h) / 2;
+                    else if (align == "end" || align == "bottom") c->y += (innerH - c->h);
                     cx += c->w + spacing;
                 } else if (layout == "col") {
-                    if (align == "center") c->x += (w - c->w) / 2;
-                    else if (align == "end" || align == "right") c->x += (w - c->w);
+                    if (align == "center") c->x += (innerW - c->w) / 2;
+                    else if (align == "end" || align == "right") c->x += (innerW - c->w);
                     cy += c->h + spacing;
                 }
                 

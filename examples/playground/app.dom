@@ -1,0 +1,326 @@
+<style>
+    /* Styling for the entire UI */
+    ui {
+        font-family: Segoe UI, sans-serif;
+    }
+
+    .container {
+        padding: 20;
+    }
+
+    .header {
+        font-size: 24;
+        font-weight: bold;
+        color: #CBA6F7;
+        text-align: center;
+    }
+
+    .section {
+        bg: #181825;
+        padding: 15;
+        border-radius: 8;
+        border: 1px solid #313244;
+    }
+
+    .section-title {
+        font-size: 18;
+        font-weight: bold;
+        color: #89B4FA;
+    }
+
+    .btn {
+        bg: #89B4FA;
+        color: #11111B;
+        border-radius: 4;
+        cursor: pointer;
+        transition: bg 0.2s;
+        padding: 8 16;
+        text-align: center;
+        font-weight: bold;
+        font-size: 14;
+    }
+    .btn:hover {
+        bg: #B4BEFE;
+    }
+
+    .btn-secondary {
+        bg: #F38BA8;
+        color: #11111B;
+        border-radius: 4;
+        cursor: pointer;
+        transition: bg 0.2s;
+        padding: 8 16;
+        text-align: center;
+        font-weight: bold;
+        font-size: 14;
+    }
+    .btn-secondary:hover {
+        bg: #F9E2AF;
+    }
+
+    .console-bg {
+        bg: #11111B;
+        padding: 10;
+        border-radius: 4;
+        border: 1px solid #313244;
+    }
+
+    .console-text {
+        color: #A6E3A1;
+        font-family: Consolas, monospace;
+        font-size: 13;
+    }
+</style>
+
+<ui title="NativeDOM Interop Playground" width="600" height="700" bg="#1E1E2E" color="#CDD6F4" centered="true">
+    <div class="container" layout="col" gap="20" width="100%" height="100%">
+        
+        <Text class="header" text="OS Interoperability Playground" width="100%" height="30" />
+
+        <!-- 1. FFI DLL Call Section -->
+        <div class="section" layout="col" gap="10" width="100%" height="176">
+            <Text class="section-title" text="1. FFI / Native DLL Calls" width="100%" height="22" />
+            <Text text="Test invoking raw C ABI functions from system DLLs." font-size="14" color="#A6ADC8" width="100%" height="20" />
+            
+            <div layout="row" gap="10" width="100%" height="34">
+                <div id="btnMsgBox" class="btn" width="160">Trigger MessageBox</div>
+                <div id="btnBeep" class="btn" width="120">System Beep</div>
+                <div id="btnTone" class="btn-secondary" width="160">Play Tone (Kernel32)</div>
+            </div>
+            
+            <div layout="row" gap="10" width="100%" height="34">
+                <div id="btnTitle" class="btn-secondary" width="160">Change Window Title</div>
+                <div id="btnScreen" class="btn" width="140">Get Screen Res</div>
+                <div id="btnMouse" class="btn-secondary" width="160">Move Mouse (0,0)</div>
+            </div>
+        </div>
+
+        <!-- 2. COM / ActiveX Automation Section -->
+        <div class="section" layout="col" gap="10" width="100%" height="176">
+            <Text class="section-title" text="2. COM / ActiveX Automation" width="100%" height="22" />
+            <Text text="Test instantiating Windows OS components via ActiveX." font-size="14" color="#A6ADC8" width="100%" height="20" />
+            
+            <div layout="row" gap="10" width="100%" height="34">
+                <div id="btnTTS" class="btn" width="160">Say Hello (TTS)</div>
+                <div id="btnFSO" class="btn" width="140">Scan C:\ Drives</div>
+                <div id="btnCalc" class="btn-secondary" width="140">Launch Calc</div>
+            </div>
+            
+            <div layout="row" gap="10" width="100%" height="34">
+                <div id="btnWMI" class="btn-secondary" width="160">Query OS Info (WMI)</div>
+                <div id="btnWiFi" class="btn" width="140">Get WiFi Nets</div>
+                <div id="btnNotepad" class="btn-secondary" width="160">Type in Notepad</div>
+            </div>
+        </div>
+
+        <!-- Output Log -->
+        <div class="section" layout="col" gap="10" width="100%" height="300">
+            <div layout="row" justify="space-between" width="100%" height="24">
+                <Text class="section-title" text="Output Log" width="200" height="24" />
+                <div id="btnClear" class="btn" font-size="12" height="24" padding="2 10">Clear</div>
+            </div>
+            
+            <div class="console-bg" width="100%" height="236">
+                <!-- Text elements without width wrap strictly. Using a multi-line Text node. -->
+                <Text id="logWindow" class="console-text" text="System ready." width="100%" height="100%" />
+            </div>
+        </div>
+
+    </div>
+</ui>
+
+<script>
+    // System initialization and console UI logic
+    function printLog(msg) {
+        sys.log(msg);
+        let logEl = document.getElementById("logWindow");
+        if (!logEl) return;
+        
+        let current = logEl.getAttribute("text") || "";
+        if (current === "System ready.") current = "";
+        
+        let lines = current.split("\n");
+        // Maintain a strict 10 line buffer limit
+        if (lines.length > 10) lines.shift();
+        
+        let newLog = "";
+        if (current.length > 0) newLog = lines.join("\n") + "\n";
+        newLog += "> " + msg;
+        
+        logEl.setAttribute("text", newLog.trim());
+    }
+
+    function clearLog() {
+        let logEl = document.getElementById("logWindow");
+        if (logEl) logEl.setAttribute("text", "System ready.");
+    }
+
+    // ---- DLL Tests ----
+    document.getElementById("btnMsgBox").addEventListener("click", function() {
+        printLog("Calling User32.dll -> MessageBoxA...");
+        let result = sys.dllCall("User32.dll", "MessageBoxA", [
+            0, 
+            "Raw Win32 MessageBox invoked securely via FFI!", 
+            "NativeDOM Bridge", 
+            68 // MB_YESNO | MB_ICONINFORMATION
+        ]);
+        
+        if (result === 6) printLog("Result: YES");
+        else if (result === 7) printLog("Result: NO");
+        else printLog("Result: " + result);
+    });
+
+    document.getElementById("btnBeep").addEventListener("click", function() {
+        printLog("Triggering System Beep.");
+        sys.dllCall("User32.dll", "MessageBeep", [ -1 ]); // 0xFFFFFFFF
+    });
+
+    document.getElementById("btnTone").addEventListener("click", function() {
+        printLog("Generating 750Hz Audio Tone natively...");
+        sys.dllCall("Kernel32.dll", "Beep", [ 750, 400 ]); 
+    });
+
+    document.getElementById("btnTitle").addEventListener("click", function() {
+        printLog("Locating Window handle via User32.dll...");
+        let hwnd = sys.dllCall("User32.dll", "FindWindowA", [ 0, "NativeDOM Interop Playground" ]);
+        if (hwnd > 0) {
+            printLog("Found HWND: " + hwnd + " - Modifying title.");
+            sys.dllCall("User32.dll", "SetWindowTextA", [ hwnd, "NativeDOM - DLL FFI Mod applied!" ]);
+        } else {
+            printLog("HWND lookup failed.");
+        }
+    });
+
+    document.getElementById("btnScreen").addEventListener("click", function() {
+        let cx = sys.dllCall("User32.dll", "GetSystemMetrics", [ 0 ]); // SM_CXSCREEN
+        let cy = sys.dllCall("User32.dll", "GetSystemMetrics", [ 1 ]); // SM_CYSCREEN
+        printLog("Screen Resolution via User32: " + cx + "x" + cy);
+    });
+
+    document.getElementById("btnMouse").addEventListener("click", function() {
+        printLog("FFI: Modifying hardware cursor coordinates...");
+        sys.dllCall("User32.dll", "SetCursorPos", [ 0, 0 ]); 
+    });
+
+    // ---- COM Object Tests ----
+    let ttsVoice = null;
+    document.getElementById("btnTTS").addEventListener("click", function() {
+        printLog("Invoking COM SAPI.SpVoice...");
+        if (!ttsVoice) {
+            ttsVoice = sys.com.create("SAPI.SpVoice");
+        }
+        
+        if (ttsVoice) {
+            ttsVoice.set("Volume", 100);
+            ttsVoice.call("Speak", "Interop successful.", 1); // 1 = SVSFlagsAsync
+            // We intentionally do NOT call .release() here otherwise the async thread is killed instantly.
+            printLog("Speech invoked asynchronously.");
+        } else {
+            printLog("Error: Could not instantiate TTS.");
+        }
+    });
+
+    document.getElementById("btnFSO").addEventListener("click", function() {
+        printLog("Creating Scripting.FileSystemObject...");
+        let fso = sys.com.create("Scripting.FileSystemObject");
+        
+        if (fso) {
+            let drives = fso.get("Drives");
+            if (drives) {
+                let drivesArray = drives.toArray(); // Automates IEnumVARIANT extraction
+                printLog("Found " + drivesArray.length + " volumes mapped.");
+                
+                for (let i = 0; i < drivesArray.length; i++) {
+                    let d = drivesArray[i];
+                    if (d.get("IsReady")) {
+                        let gb = (d.get("FreeSpace") / 1073741824).toFixed(1);
+                        printLog("- Drive " + d.get("DriveLetter") + ": " + gb + " GB free");
+                    }
+                    d.release();
+                }
+                drives.release();
+            }
+            fso.release();
+        } else {
+            printLog("Error: Failed to create FileSystemObject");
+        }
+    });
+
+    document.getElementById("btnCalc").addEventListener("click", function() {
+        printLog("Creating WScript.Shell to launch process...");
+        let shell = sys.com.create("WScript.Shell");
+        if (shell) {
+            shell.call("Run", "calc.exe");
+            shell.release();
+            printLog("Calculator process spanned!");
+        }
+    });
+
+    document.getElementById("btnWMI").addEventListener("click", function() {
+        printLog("Creating WbemScripting.SWbemLocator...");
+        let locator = sys.com.create("WbemScripting.SWbemLocator");
+        if (locator) {
+            let svc = locator.call("ConnectServer");
+            if (svc) {
+                printLog("Executing WQL query for OS details...");
+                let query = svc.call("ExecQuery", "SELECT Caption, Version FROM Win32_OperatingSystem");
+                let items = query.toArray();
+                if (items.length > 0) {
+                    let osName = items[0].get("Caption");
+                    let osVer = items[0].get("Version");
+                    printLog(">> Active OS: " + osName);
+                    printLog(">> Version: " + osVer);
+                    items[0].release();
+                }
+                query.release();
+                svc.release();
+            }
+            locator.release();
+        }
+    });
+
+    document.getElementById("btnWiFi").addEventListener("click", function() {
+        printLog("Spawning asynchronous netsh subprocess...");
+        let shell = sys.com.create("WScript.Shell");
+        if (shell) {
+            // Exec spawns a background console and returns a WshScriptExec object
+            let exec = shell.call("Exec", "cmd.exe /c netsh wlan show networks");
+            if (exec) {
+                printLog("Process executing. Awaiting buffer output (timer polling active)...");
+                // Poll for WshFinished (1) status
+                let pollTimer = sys.setInterval(function() {
+                    let status = exec.get("Status");
+                    if (status == 1) { // 1 = WshFinished
+                        sys.clearInterval(pollTimer);
+                        let stdout = exec.get("StdOut");
+                        if (stdout) {
+                            let outStr = stdout.call("ReadAll");
+                            printLog("\n[WLAN List extracted via Asynchronous Buffer Polling]\n" + outStr);
+                            stdout.release();
+                        }
+                        exec.release();
+                        shell.release();
+                    }
+                }, 50);
+            } else {
+                shell.release();
+            }
+        }
+    });
+
+    document.getElementById("btnNotepad").addEventListener("click", function() {
+        printLog("Automating Notepad via SendKeys...");
+        let shell = sys.com.create("WScript.Shell");
+        if (shell) {
+            shell.call("Run", "notepad.exe");
+            sys.dllCall("Kernel32.dll", "Sleep", [ 600 ]); // Pause to let UI spawn and focus
+            //sys.sleep(600);
+            shell.call("SendKeys", "NativeDOM Automation Interop is completely functional! ~~~ ");
+            shell.release();
+        }
+    });
+
+    document.getElementById("btnClear").addEventListener("click", function() {
+        clearLog();
+    });
+</script>

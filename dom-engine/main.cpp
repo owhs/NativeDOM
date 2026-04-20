@@ -1089,6 +1089,65 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR lpCmdLine, int) {
     // Do layout before window creation to get size/frameless info
     appRoot->Layout(0, 0);
 
+    // ---- UAC and Instance Checks ----
+    if (appRoot->Get("uac") == "required") {
+        bool isElevated = false;
+        HANDLE hToken = NULL;
+        if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+            TOKEN_ELEVATION Elevation;
+            DWORD cbSize = sizeof(TOKEN_ELEVATION);
+            if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize)) {
+                isElevated = Elevation.TokenIsElevated;
+            }
+        }
+        if (hToken) CloseHandle(hToken);
+
+        if (!isElevated) {
+            char szPath[MAX_PATH];
+            if (GetModuleFileNameA(NULL, szPath, ARRAYSIZE(szPath))) {
+                SHELLEXECUTEINFOA sei = { sizeof(sei) };
+                sei.lpVerb = "runas";
+                sei.lpFile = szPath;
+                sei.hwnd = NULL;
+                sei.nShow = SW_NORMAL;
+                if (ShellExecuteExA(&sei)) {
+                    ExitProcess(0);
+                } else {
+                    sysLog("Failed to elevate process permissions via ShellExecuteA.");
+                }
+            }
+        }
+    }
+
+    std::string instCheck = appRoot->Get("instances");
+    if (instCheck == "forceReplace" || instCheck == "focusIfOpen" || instCheck == "warn") {
+        std::string title = appRoot->Get("title", "DOM App");
+        std::string mutexName = "NativeDOM_Mutex_" + title;
+        CreateMutexA(NULL, FALSE, mutexName.c_str());
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            HWND existing = FindWindowA("DOMWindow", title.c_str());
+            if (instCheck == "focusIfOpen") {
+                if (existing) {
+                    ShowWindow(existing, SW_RESTORE);
+                    SetForegroundWindow(existing);
+                }
+                ExitProcess(0);
+            } else if (instCheck == "warn") {
+                if (MessageBoxA(NULL, "An instance of this application is already running.\nDo you want to close it and start a new instance?", title.c_str(), MB_YESNO | MB_ICONWARNING) == IDNO) {
+                    ExitProcess(0);
+                }
+                instCheck = "forceReplace"; // fallthrough
+            }
+            
+            if (instCheck == "forceReplace") {
+                if (existing) {
+                    PostMessage(existing, WM_CLOSE, 0, 0);
+                    Sleep(200); // Allow previous instance to purge and shut down gracefully
+                }
+            }
+        }
+    }
+
     // ---- Create Window ----
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(wc);

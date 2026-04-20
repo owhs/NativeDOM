@@ -58,6 +58,42 @@ public:
     static void BindToEnv(Interpreter& interp) {
         auto sysObj = Value::Object();
 
+        sysObj->setProperty("isCompiled", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+#ifdef COMPILED_DOM_PROJECT
+            return Value::Bool(true);
+#else
+            return Value::Bool(false);
+#endif
+        }));
+
+        sysObj->setProperty("setTimeout", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.size() < 2) return Value::Num(0);
+            std::vector<ValuePtr> callArgs;
+            for (size_t i = 2; i < args.size(); i++) callArgs.push_back(args[i]);
+            int id = interp.addTimer(args[0], callArgs, (int)args[1]->toNumber(), false);
+            return Value::Num(id);
+        }));
+
+        sysObj->setProperty("setInterval", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.size() < 2) return Value::Num(0);
+            std::vector<ValuePtr> callArgs;
+            for (size_t i = 2; i < args.size(); i++) callArgs.push_back(args[i]);
+            int id = interp.addTimer(args[0], callArgs, (int)args[1]->toNumber(), true);
+            return Value::Num(id);
+        }));
+
+        sysObj->setProperty("clearTimeout", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            interp.clearTimer((int)args[0]->toNumber());
+            return Value::Undefined();
+        }));
+
+        sysObj->setProperty("clearInterval", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            interp.clearTimer((int)args[0]->toNumber());
+            return Value::Undefined();
+        }));
+
         // ---- sys.log ----
         sysObj->setProperty("log", Value::Native([&interp](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
             extern bool g_sysLogEnabled;
@@ -89,7 +125,13 @@ public:
         sysObj->setProperty("time", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
             return Value::Num((double)GetTickCount64());
         }));
-        
+        // ---- sys.sleep ----
+        sysObj->setProperty("sleep", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            Sleep((DWORD)args[0]->toNumber());
+            return Value::Undefined();
+        }));
+
         // ---- sys.exec ----
         sysObj->setProperty("exec", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
             if (args.empty()) return Value::Num(0);

@@ -6,6 +6,8 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
 1. [System Core (sys.*)](#system-core-sys)
 2. [Window Management (sys.window.*)](#window-management-syswindow)
 3. [Screen & Inputs](#screen--inputs)
+4. [COM Objects (sys.com.*)](#com-objects-syscom)
+5. [C++ Extensions API](#c-extensions-api)
 
 ---
 
@@ -136,6 +138,49 @@ The `sys` object binds raw Operating System (OS) APIs directly into the NativeDO
     Wipes the clipboard buffer totally clean preventing accidental multi-read memory leaks.
 *   `sys.clipboard.getFormat(id) -> Array<number>`, `sys.clipboard.setFormat(id, buffer)`
     Binary API wrapper. Permits direct format abstraction (mapping numerical integers like `CF_BITMAP`) across arbitrary bytes!
+
+---
+
+## COM Objects (sys.com.*)
+
+NativeDOM includes a highly advanced COM (Component Object Model) and OLE Automation bridge. This allows you to instantiate and control Windows OS components and ActiveX controls directly from Javascript, without requiring intermediate C++ plugins.
+
+Data types (Strings, Numbers, Booleans, and Arrays) are automatically mapped back and forth between JS and COM `VARIANT`s.
+
+*   `sys.com.create(progId: string) -> object`
+    Instantiates a brand new COM object using its OS ProgID (e.g. `"Scripting.FileSystemObject"`, `"SAPI.SpVoice"`, `"InternetExplorer.Application"`). Returns a wrapped native object exposing interaction methods, or `null` if the object couldn't be created.
+*   `sys.com.getActive(progId: string) -> object`
+    Hooks into an already-running COM object instance from the OS (via `GetActiveObject()`).
+*   `sys.com.releaseAll()`
+    Forcefully calls `Release()` on all instantiated COM interfaces. Good practice before closing an application to guarantee cleanup.
+
+### Interacting with Wrapped COM Objects
+
+The object returned by `sys.com.create` exposes the following interface:
+
+*   `obj.call(methodName: string, ...args) -> any`
+    Invokes a method on the COM interface. COM arrays (`SafeArray`) are automatically converted into Javascript Arrays.
+*   `obj.get(propertyName: string, ...indexes?) -> any`
+    Retrieves a property value. You can optionally supply extra parameters for parameterized properties (like retrieving an item from a collection array by index).
+*   `obj.set(propertyName: string, value: any) -> boolean`
+    Overwrites a property on the COM interface. Returns `true` if successful.
+*   `obj.release()`
+    Immediately releases this specific COM pointer from memory.
+*   `obj.forEach(callback: function)`
+    If the COM object is a Collection (implements `IEnumVARIANT` or the `_NewEnum` property), you can iterate entirely through it. The callback receives `(item, index)`.
+*   `obj.toArray() -> Array`
+    If the COM object is a Collection, attempts to aggressively iterate and map the entire collection into a standard Javascript Array!
+
+**Example Usage**: Text-to-Speech
+
+```javascript
+let voice = sys.com.create("SAPI.SpVoice");
+if (voice) {
+    voice.set("Volume", 100);
+    voice.call("Speak", "Warning, system breach detected.");
+    voice.release();
+}
+```
 
 ---
 

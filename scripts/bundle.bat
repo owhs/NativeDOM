@@ -33,7 +33,7 @@ if "!BUNDLE_TYPE!"=="full" (
     set "OUT_EXE=dom_full_bundle-!BUNDLE_NAME!.exe"
     set "ENTRY_FILE=dom-engine/main.cpp"
     set "COMPILER_FLAGS=/nologo /EHs-c- /std:c++17 /wd4530 /O1 /Os /GL /MD /GS- /Gw /Gy /Zc:inline /GR- /DCOMPILED_DOM_PROJECT"
-    set "LINKER_FLAGS=/link /LTCG /OPT:REF /OPT:ICF /MERGE:.rdata=.text /MERGE:.pdata=.text /FILEALIGN:512 /SUBSYSTEM:WINDOWS User32.lib Gdi32.lib opengl32.lib Shell32.lib"
+    set "LINKER_FLAGS=/link /LTCG /OPT:REF /OPT:ICF /MERGE:.rdata=.text /MERGE:.pdata=.text /FILEALIGN:512 /SUBSYSTEM:WINDOWS User32.lib Gdi32.lib opengl32.lib Shell32.lib ole32.lib oleaut32.lib Advapi32.lib"
 ) else (
     set "OUT_EXE=dom_bundle-!BUNDLE_NAME!.exe"
     set "ENTRY_FILE=dom-engine/stub.cpp"
