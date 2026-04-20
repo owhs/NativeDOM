@@ -421,6 +421,19 @@ public:
             return Value::Undefined();
         }));
 
+        // removeAttribute
+        wrapper->setProperty("removeAttribute", Value::Native([sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            std::string key = args[0]->toString();
+            if (key == "text" || key == "innerText") {
+                sharedEl->innerText = "";
+            } else {
+                sharedEl->RemoveProp(key);
+            }
+            if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
+            return Value::Undefined();
+        }));
+
         // style (property access as object)
         auto styleObj = Value::Object();
         wrapper->setProperty("style", styleObj);

@@ -266,6 +266,7 @@
         log("  DragBox found: " + (dragBox ? "yes" : "no"));
 
         dragBox.addEventListener("mousedown", function(e) {
+            dragBox.setAttribute("z-index", "99");
             isBoxDragging = true;
             var curX = parseInt(dragBox.getAttribute("x") || "0");
             var curY = parseInt(dragBox.getAttribute("y") || "0");
@@ -285,6 +286,7 @@
 
         document.addEventListener("mouseup", function() {
             if (isBoxDragging) {
+                dragBox.removeAttribute("z-index");     
                 isBoxDragging = false;
                 log("  [Drag] mouseup — done");
             }

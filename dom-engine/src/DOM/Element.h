@@ -491,6 +491,21 @@ public:
         }
     }
 
+    void RemoveProp(const std::string& key) {
+        for (auto it = props.begin(); it != props.end(); ++it) {
+            if (it->first == key) {
+                props.erase(it);
+                break;
+            }
+        }
+        for (auto it = propScores.begin(); it != propScores.end(); ++it) {
+            if (it->first == key) {
+                propScores.erase(it);
+                break;
+            }
+        }
+    }
+
     void SetPseudoProp(const std::string& pseudo, const std::string& key, const std::string& val, int score = 0) {
         std::string finalVal = val;
         int finalScore = score;
@@ -706,6 +721,40 @@ public:
         if (!visible || GetRaw("display") == "none") return;
 
         nvgSave(vg);
+        
+        int radius = GetInt("border-radius", 0);
+        extern HWND g_hwnd;
+        if (tag == "ui" && g_hwnd && IsZoomed(g_hwnd)) {
+            radius = 0;
+        }
+
+        // Box Shadow and Glow (drawn before intersect scissor so they don't clip themselves)
+        std::string bsStr = Get("box-shadow");
+        if (bsStr.empty()) bsStr = Get("box-shadow-color");
+        NVGcolor shadowCol = ParseColor(bsStr);
+        if (shadowCol.a > 0.0f) {
+            float sx = GetFloat("box-shadow-x", 0.0f);
+            float sy = GetFloat("box-shadow-y", 0.0f);
+            float blur = GetFloat("box-shadow-blur", 10.0f);
+            float spread = GetFloat("box-shadow-spread", 0.0f);
+            NVGpaint shadowPaint = nvgBoxGradient(vg, x + sx - spread, y + sy - spread, w + spread * 2, h + spread * 2, radius + spread, blur, shadowCol, nvgRGBA(0,0,0,0));
+            nvgBeginPath(vg);
+            nvgRect(vg, x + sx - spread - blur * 2, y + sy - spread - blur * 2, w + spread * 2 + blur * 4, h + spread * 2 + blur * 4);
+            nvgFillPaint(vg, shadowPaint);
+            nvgFill(vg);
+        }
+        
+        NVGcolor glowCol = ParseColor(Get("glow"));
+        if (glowCol.a > 0.0f) {
+            float blur = GetFloat("glow-blur", 15.0f);
+            float spread = GetFloat("glow-spread", 2.0f);
+            NVGpaint glowPaint = nvgBoxGradient(vg, x - spread, y - spread, w + spread * 2, h + spread * 2, radius + spread, blur, glowCol, nvgRGBA(0,0,0,0));
+            nvgBeginPath(vg);
+            nvgRect(vg, x - spread - blur * 2, y - spread - blur * 2, w + spread * 2 + blur * 4, h + spread * 2 + blur * 4);
+            nvgFillPaint(vg, glowPaint);
+            nvgFill(vg);
+        }
+
         std::string overflow = Get("overflow", "visible");
         if (overflow == "hidden") {
             nvgIntersectScissor(vg, x, y, w, h);
@@ -713,13 +762,6 @@ public:
 
         // Background
         NVGcolor bgCol = ParseColor(Get("bg"));
-        int radius = GetInt("border-radius", 0);
-        
-        extern HWND g_hwnd;
-        if (tag == "ui" && g_hwnd && IsZoomed(g_hwnd)) {
-            radius = 0;
-        }
-
         if (bgCol.a > 0.0f) {
             nvgBeginPath(vg);
             if (radius > 0) nvgRoundedRect(vg, x, y, w, h, radius);

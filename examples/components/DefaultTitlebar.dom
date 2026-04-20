@@ -3,6 +3,7 @@
         --close-btn-hover-bg: #c42b1c;
         --close-btn-hover-color: #faeeed;
         --titlebar-height: 31;
+        z-index: 99999;
     }
     :host([maximizable="false"]) #btnMax {
         display: none;
@@ -11,7 +12,7 @@
 <ui id="titlebar" width="100%" height="var(--titlebar-height)" bg="#181825">
     <Image src="system:exe" x="12" y="8" width="16" height="16" />
     <Text text="var(title, Window Title)" color="#a6adc8" font-size="12" x="36" y="9" width="300" height="20" />
-    
+
     <!-- Controls -->
     <View id="controls" width="auto" height="var(--titlebar-height)" right="0" layout="row" justify="end" color="#cdd6f4">
         <View id="btnMin" width="46" height="var(--titlebar-height)" x="0" cursor="default" hover:bg="#313244" transition="bg 100ms">
@@ -34,7 +35,7 @@
 
     if (btnClose) btnClose.addEventListener("click", function() { sys.window.close(); });
     if (btnMin) btnMin.addEventListener("click", function() { sys.window.minimize(); });
-    
+
     function updateMaxBtn() {
         if (sys.window.isMaximized()) {
             if (maxIcon) maxIcon.setAttribute("text", "&#xE923;");
@@ -42,7 +43,7 @@
             if (maxIcon) maxIcon.setAttribute("text", "&#xE922;");
         }
     }
-    
+
     if (btnMax) {
         btnMax.addEventListener("click", function() { 
             if (sys.window.isMaximized()) sys.window.restore();
@@ -56,7 +57,7 @@
         titlebar.addEventListener("dblclick", function(e) {
             var id = e.target.id;
             if (id == "btnMin" || id == "minIcon" || id == "btnMax" || id == "maxIcon" || id == "btnClose" || id == "closeIcon" || id == "controls") return;
-            
+
             var host = titlebar.parentElement();
             if (host && host.getAttribute("maximizable") == "false") return;
 

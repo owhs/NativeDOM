@@ -4,6 +4,7 @@
         width: 100%;
         height: 36;
         cursor: move;
+        z-index: 99999;
     }
     .title-text {
         color: #CDD6F4;
