@@ -11,16 +11,17 @@
         border: var(--input-border-hover, #89B4FA);
     }
     .ti-sel {
-        bg: #89B4FA44;
+        bg: var(--input-sel, #89B4FA44);
         height: 18;
         width: 0;
         x: 0;
         y: 9;
         pointer-events: none;
         border-radius: 2;
+        opacity: 0;
     }
     .ti-text {
-        color: #CDD6F4;
+        color: var(--input-color, #CDD6F4);
         width: 9999;
         height: 100%;
         x: 12;
@@ -31,15 +32,16 @@
         white-space: nowrap;
     }
     .ti-caret {
-        bg: #CDD6F4;
+        bg: var(--input-caret, var(--input-color, #CDD6F4));
         width: 1;
         height: 18;
         x: 12;
         y: 9;
         pointer-events: none;
+        opacity: 0;
     }
     .ti-ph {
-        color: #585B70;
+        color: var(--input-placeholder, #585B70);
         width: 100%;
         height: 100%;
         x: 12;
@@ -52,434 +54,499 @@
 </style>
 
 <ui width="100%" height="100%" overflow="hidden" onKey="_ti_charInput();">
-    <View class="ti-sel" />
-    <Text class="ti-text" text="" />
-    <View class="ti-caret" />
-    <Text class="ti-ph" text="" />
+    <View class="ti-sel" /> <!-- Selection -->
+    <Text class="ti-text" text="" /> <!-- Text -->
+    <View class="ti-caret" /> <!-- Caret -->
+    <Text class="ti-ph" text="" /> <!-- Placeholder -->
 </ui>
 
 <script>
-/* ================================================================
-   TextInput Component — Proper visual caret, selection, scrolling
-   ================================================================ */
-var _ti_inputs = [];
-var _ti_activeIdx = -1;
-var _ti_padLeft = 12;
-var _ti_fontSize = 14;
-var _ti_dragging = false;
-var _ti_dragIdx = -1;
+    /* ================================================================
+    TextInput Component — Proper visual caret, selection, scrolling
+    ================================================================ */
+    var _ti_inputs = [];
+    var _ti_activeIdx = -1;
+    var _ti_padLeft = 12;
+    var _ti_fontSize = 14;
+    var _ti_dragging = false;
+    var _ti_dragIdx = -1;
 
-function _ti_init() {
-    var all = document.shadowDomSelectorAll("TextInput");
-    if (!all || all.length === 0) return;
-    var i = 0;
-    for (i = 0; i < all.length; i++) {
-        _ti_setupOne(all[i], i);
-    }
-    /* Caret blink timer */
-    setInterval(function() {
-        var j = 0;
-        for (j = 0; j < _ti_inputs.length; j++) {
-            var e = _ti_inputs[j];
-            if (e.state.focused) {
-                e.state.blinkOn = !e.state.blinkOn;
-                _ti_updateCaret(e);
-            }
+    function _ti_init() {
+        var all = document.shadowDomSelectorAll("TextInput");
+        if (!all || all.length === 0) return;
+        var i = 0;
+        for (i = 0; i < all.length; i++) {
+            _ti_setupOne(all[i], i);
         }
-    }, 530);
+        /* Caret blink timer */
+        setInterval(function() {
+            var j = 0;
+            for (j = 0; j < _ti_inputs.length; j++) {
+                var e = _ti_inputs[j];
+                if (e.state.focused) {
+                    e.state.blinkOn = !e.state.blinkOn;
+                    _ti_updateCaret(e);
+                }
+            }
+        }, 530);
 
-    /* Global drag-selection listeners */
-    document.addEventListener("mousemove", function(ev) {
-        if (!_ti_dragging || _ti_dragIdx < 0) return;
-        var e = _ti_inputs[_ti_dragIdx];
-        if (!e) return;
-        var rect = e.host.getBoundingRect();
-        var localX = ev.clientX - rect.x - _ti_padLeft + e.state.scrollX;
-        e.state.caretPos = _ti_hitTest(e, localX);
-        e.state.blinkOn = true;
-        _ti_render(e);
-    });
-    document.addEventListener("mouseup", function() {
-        if (_ti_dragging && _ti_dragIdx >= 0) {
+        /* Global drag-selection listeners */
+        document.addEventListener("mousemove", function(ev) {
+            if (!_ti_dragging || _ti_dragIdx < 0) return;
             var e = _ti_inputs[_ti_dragIdx];
-            if (e && e.state.selAnchor === e.state.caretPos) {
-                e.state.selAnchor = -1; /* Was a click, not a drag */
-            }
-        }
-        _ti_dragging = false;
-        _ti_dragIdx = -1;
-    });
-}
-
-function _ti_setupOne(host, idx) {
-    var selEl   = host.shadowDomSelector(".ti-sel");
-    var textEl  = host.shadowDomSelector(".ti-text");
-    var caretEl = host.shadowDomSelector(".ti-caret");
-    var phEl    = host.shadowDomSelector(".ti-ph");
-    if (!textEl || !caretEl) return;
-
-    var state = {
-        text: "",
-        caretPos: 0,
-        selAnchor: -1,
-        scrollX: 0,
-        focused: false,
-        blinkOn: true,
-        isPassword: false,
-        placeholder: "Type here..."
-    };
-
-    var typeAttr = host.getAttribute("type");
-    if (typeAttr === "password") state.isPassword = true;
-    var phAttr = host.getAttribute("placeholder");
-    if (phAttr && phAttr !== "" && phAttr !== "undefined") state.placeholder = phAttr;
-    var valAttr = host.getAttribute("value");
-    if (valAttr && valAttr !== "" && valAttr !== "undefined") {
-        state.text = valAttr;
-        state.caretPos = valAttr.length;
-    }
-
-    if (phEl) phEl.setAttribute("text", state.placeholder);
-
-    var entry = { host: host, textEl: textEl, caretEl: caretEl, selEl: selEl, phEl: phEl, state: state, idx: idx };
-    _ti_inputs.push(entry);
-
-    (function(e) {
-        /* Focus */
-        host.addEventListener("focus", function() {
-            if (_ti_activeIdx >= 0 && _ti_activeIdx !== e.idx) {
-                var prev = _ti_inputs[_ti_activeIdx];
-                if (prev) { prev.state.focused = false; _ti_render(prev); }
-            }
-            _ti_activeIdx = e.idx;
-            e.state.focused = true;
-            e.state.blinkOn = true;
-            _ti_render(e);
-        });
-        host.addEventListener("blur", function() {
-            e.state.focused = false;
-            e.state.selAnchor = -1;
-            _ti_render(e);
-        });
-        /* Mousedown: position caret + start drag selection */
-        host.addEventListener("mousedown", function(ev) {
-            var rect = host.getBoundingRect();
+            if (!e) return;
+            var rect = e.host.getBoundingRect();
             var localX = ev.clientX - rect.x - _ti_padLeft + e.state.scrollX;
             e.state.caretPos = _ti_hitTest(e, localX);
-            e.state.selAnchor = e.state.caretPos; /* Anchor for potential drag */
             e.state.blinkOn = true;
-            _ti_dragging = true;
-            _ti_dragIdx = e.idx;
             _ti_render(e);
         });
-        /* Keydown for arrows, Home, End, Delete */
-        host.addEventListener("keydown", function(ev) {
-            if (!e.state.focused) return;
-            _ti_handleKeyDown(e, ev);
+        document.addEventListener("mouseup", function() {
+            if (_ti_dragging && _ti_dragIdx >= 0) {
+                var e = _ti_inputs[_ti_dragIdx];
+                if (e && e.state.selAnchor === e.state.caretPos) {
+                    e.state.selAnchor = -1; /* Was a click, not a drag */
+                }
+            }
+            _ti_dragging = false;
+            _ti_dragIdx = -1;
         });
-    })(entry);
-
-    _ti_render(entry);
-}
-
-/* ---- Hit test: find char index at pixel x offset in text ---- */
-function _ti_hitTest(entry, localX) {
-    var s = entry.state;
-    var txt = _ti_displayText(s);
-    if (txt.length === 0) return 0;
-    if (localX <= 0) return 0;
-    var fullW = document.measureText(txt, _ti_fontSize);
-    if (localX >= fullW) return txt.length;
-    /* Binary search */
-    var lo = 0;
-    var hi = txt.length;
-    while (lo < hi) {
-        var mid = Math.floor((lo + hi) / 2);
-        var mw = document.measureText(txt.slice(0, mid), _ti_fontSize);
-        if (mw < localX) { lo = mid + 1; } else { hi = mid; }
     }
-    /* Check nearest boundary */
-    if (lo > 0) {
-        var wLo = document.measureText(txt.slice(0, lo), _ti_fontSize);
-        var wPrev = document.measureText(txt.slice(0, lo - 1), _ti_fontSize);
-        if (Math.abs(localX - wPrev) < Math.abs(localX - wLo)) return lo - 1;
-    }
-    return lo;
-}
 
-/* ---- Display text (password mask) ---- */
-function _ti_displayText(s) {
-    if (!s.isPassword || s.text.length === 0) return s.text;
-    var m = "";
-    var i = 0;
-    for (i = 0; i < s.text.length; i++) m = m + "\u2022";
-    return m;
-}
+    function _ti_setupOne(host, idx) {
+        var selEl   = host.shadowDomSelector(".ti-sel");
+        var textEl  = host.shadowDomSelector(".ti-text");
+        var caretEl = host.shadowDomSelector(".ti-caret");
+        var phEl    = host.shadowDomSelector(".ti-ph");
+        if (!textEl || !caretEl) return;
 
-/* ---- Measure caret pixel position ---- */
-function _ti_caretPx(entry) {
-    var txt = _ti_displayText(entry.state);
-    if (entry.state.caretPos <= 0) return 0;
-    return document.measureText(txt.slice(0, entry.state.caretPos), _ti_fontSize);
-}
+        var state = {
+            text: "",
+            caretPos: 0,
+            selAnchor: -1,
+            scrollX: 0,
+            focused: false,
+            blinkOn: true,
+            isPassword: false,
+            placeholder: "Type here...",
+            history: [{text: "", caretPos: 0, selAnchor: -1}],
+            historyIdx: 0,
+            lastAction: ""
+        };
 
-/* ---- Character input (WM_CHAR via onKey) ---- */
-function _ti_charInput() {
-    if (_ti_activeIdx < 0) return;
-    var entry = _ti_inputs[_ti_activeIdx];
-    if (!entry || !entry.state.focused) return;
-    var s = entry.state;
-    var kc = sys.event.keyCode;
-    s.blinkOn = true;
+        var typeAttr = host.getAttribute("type");
+        if (typeAttr === "password") state.isPassword = true;
+        var phAttr = host.getAttribute("placeholder");
+        if (phAttr && phAttr !== "" && phAttr !== "undefined") state.placeholder = phAttr;
+        var valAttr = host.getAttribute("value");
+        if (valAttr && valAttr !== "" && valAttr !== "undefined") {
+            state.text = valAttr;
+            state.caretPos = valAttr.length;
+            state.history[0] = {text: valAttr, caretPos: valAttr.length, selAnchor: -1};
+        }
 
-    if (kc === 1) { /* Ctrl+A */
-        s.selAnchor = 0;
-        s.caretPos = s.text.length;
+        if (phEl) phEl.setAttribute("text", state.placeholder);
+
+        var entry = { host: host, textEl: textEl, caretEl: caretEl, selEl: selEl, phEl: phEl, state: state, idx: idx };
+        _ti_inputs.push(entry);
+
+        (function(e) {
+            /* Focus */
+            host.addEventListener("focus", function() {
+                if (_ti_activeIdx >= 0 && _ti_activeIdx !== e.idx) {
+                    var prev = _ti_inputs[_ti_activeIdx];
+                    if (prev) { prev.state.focused = false; _ti_render(prev); }
+                }
+                _ti_activeIdx = e.idx;
+                e.state.focused = true;
+                e.state.blinkOn = true;
+                _ti_render(e);
+            });
+            host.addEventListener("blur", function() {
+                e.state.focused = false;
+                e.state.selAnchor = -1;
+                _ti_render(e);
+            });
+            /* Mousedown: position caret + start drag selection */
+            host.addEventListener("mousedown", function(ev) {
+                var rect = host.getBoundingRect();
+                var localX = ev.clientX - rect.x - _ti_padLeft + e.state.scrollX;
+                e.state.caretPos = _ti_hitTest(e, localX);
+                e.state.selAnchor = e.state.caretPos; /* Anchor for potential drag */
+                e.state.blinkOn = true;
+                _ti_dragging = true;
+                _ti_dragIdx = e.idx;
+                _ti_render(e);
+            });
+            /* Keydown for arrows, Home, End, Delete */
+            host.addEventListener("keydown", function(ev) {
+                if (!e.state.focused) return;
+                _ti_handleKeyDown(e, ev);
+            });
+        })(entry);
+
         _ti_render(entry);
-        return;
     }
-    if (kc === 3) { /* Ctrl+C */
-        if (_ti_hasSel(s)) sys.clipboard.setText(_ti_getSelText(s));
-        return;
+
+    /* ---- Hit test: find char index at pixel x offset in text ---- */
+    function _ti_hitTest(entry, localX) {
+        var s = entry.state;
+        var txt = _ti_displayText(s);
+        if (txt.length === 0) return 0;
+        if (localX <= 0) return 0;
+        var fullW = document.measureText(txt, _ti_fontSize);
+        if (localX >= fullW) return txt.length;
+        /* Binary search */
+        var lo = 0;
+        var hi = txt.length;
+        while (lo < hi) {
+            var mid = Math.floor((lo + hi) / 2);
+            var mw = document.measureText(txt.slice(0, mid), _ti_fontSize);
+            if (mw < localX) { lo = mid + 1; } else { hi = mid; }
+        }
+        /* Check nearest boundary */
+        if (lo > 0) {
+            var wLo = document.measureText(txt.slice(0, lo), _ti_fontSize);
+            var wPrev = document.measureText(txt.slice(0, lo - 1), _ti_fontSize);
+            if (Math.abs(localX - wPrev) < Math.abs(localX - wLo)) return lo - 1;
+        }
+        return lo;
     }
-    if (kc === 22) { /* Ctrl+V */
-        var clip = sys.clipboard.getText();
-        if (clip && clip !== "" && clip !== "null") {
+
+    /* ---- Display text (password mask) ---- */
+    function _ti_displayText(s) {
+        if (!s.isPassword || s.text.length === 0) return s.text;
+        var m = "";
+        var i = 0;
+        for (i = 0; i < s.text.length; i++) m = m + "\u2022";
+        return m;
+    }
+
+    /* ---- Measure caret pixel position ---- */
+    function _ti_caretPx(entry) {
+        var txt = _ti_displayText(entry.state);
+        if (entry.state.caretPos <= 0) return 0;
+        return document.measureText(txt.slice(0, entry.state.caretPos), _ti_fontSize);
+    }
+
+    /* ---- Character input (WM_CHAR via onKey) ---- */
+    function _ti_charInput() {
+        if (_ti_activeIdx < 0) return;
+        var entry = _ti_inputs[_ti_activeIdx];
+        if (!entry || !entry.state.focused) return;
+        var s = entry.state;
+        var kc = sys.event.keyCode;
+        s.blinkOn = true;
+
+        if (kc === 26) { /* Ctrl+Z */
+            if (s.historyIdx > 0) {
+                s.historyIdx--;
+                var sh = s.history[s.historyIdx];
+                s.text = sh.text; s.caretPos = sh.caretPos; s.selAnchor = sh.selAnchor;
+                _ti_render(entry); _ti_notify(entry);
+            }
+            return;
+        }
+        if (kc === 25) { /* Ctrl+Y */
+            if (s.historyIdx < s.history.length - 1) {
+                s.historyIdx++;
+                var sh = s.history[s.historyIdx];
+                s.text = sh.text; s.caretPos = sh.caretPos; s.selAnchor = sh.selAnchor;
+                _ti_render(entry); _ti_notify(entry);
+            }
+            return;
+        }
+        if (kc === 1) { /* Ctrl+A */
+            s.selAnchor = 0;
+            s.caretPos = s.text.length;
+            _ti_render(entry);
+            return;
+        }
+        if (kc === 3) { /* Ctrl+C */
+            if (_ti_hasSel(s)) sys.clipboard.setText(_ti_getSelText(s));
+            return;
+        }
+        if (kc === 22) { /* Ctrl+V */
+            var clip = sys.clipboard.getText();
+            if (clip && clip !== "" && clip !== "null") {
+                _ti_delSel(s);
+                var clean = "";
+                var ci = 0;
+                for (ci = 0; ci < clip.length; ci++) {
+                    var cc = clip.charCodeAt(ci);
+                    if (cc >= 32 && cc <= 126) clean = clean + clip.charAt(ci);
+                }
+                if (clean.length > 0) {
+                    s.text = s.text.slice(0, s.caretPos) + clean + s.text.slice(s.caretPos);
+                    s.caretPos = s.caretPos + clean.length;
+                    _ti_commit(s, "paste");
+                }
+            }
+            _ti_render(entry); _ti_notify(entry);
+            return;
+        }
+        if (kc === 24) { /* Ctrl+X */
+            if (_ti_hasSel(s)) {
+                sys.clipboard.setText(_ti_getSelText(s));
+                _ti_delSel(s);
+                _ti_commit(s, "cut");
+            }
+            _ti_render(entry); _ti_notify(entry);
+            return;
+        }
+        if (kc === 8 || kc === 127) { /* Backspace or Ctrl+Backspace */
+            if (_ti_hasSel(s)) {
+                _ti_delSel(s);
+                _ti_commit(s, "del");
+            } else if (s.caretPos > 0) {
+                if (sys.event.ctrlKey || kc === 127) {
+                    var wb = _ti_wordLeft(s.text, s.caretPos);
+                    s.text = s.text.slice(0, wb) + s.text.slice(s.caretPos);
+                    s.caretPos = wb;
+                    _ti_commit(s, "del");
+                } else {
+                    s.text = s.text.slice(0, s.caretPos - 1) + s.text.slice(s.caretPos);
+                    s.caretPos = s.caretPos - 1;
+                    _ti_commit(s, "bksp");
+                }
+            }
+            _ti_render(entry); _ti_notify(entry);
+            return;
+        }
+        if (kc >= 32 && kc <= 126) { /* Printable */
             _ti_delSel(s);
-            var clean = "";
-            var ci = 0;
-            for (ci = 0; ci < clip.length; ci++) {
-                var cc = clip.charCodeAt(ci);
-                if (cc >= 32 && cc <= 126) clean = clean + clip.charAt(ci);
-            }
-            if (clean.length > 0) {
-                s.text = s.text.slice(0, s.caretPos) + clean + s.text.slice(s.caretPos);
-                s.caretPos = s.caretPos + clean.length;
-            }
-        }
-        _ti_render(entry); _ti_notify(entry);
-        return;
-    }
-    if (kc === 24) { /* Ctrl+X */
-        if (_ti_hasSel(s)) {
-            sys.clipboard.setText(_ti_getSelText(s));
-            _ti_delSel(s);
-        }
-        _ti_render(entry); _ti_notify(entry);
-        return;
-    }
-    if (kc === 8) { /* Backspace */
-        if (_ti_hasSel(s)) {
-            _ti_delSel(s);
-        } else if (s.caretPos > 0) {
-            if (sys.event.ctrlKey) {
-                var wb = _ti_wordLeft(s.text, s.caretPos);
-                s.text = s.text.slice(0, wb) + s.text.slice(s.caretPos);
-                s.caretPos = wb;
-            } else {
-                s.text = s.text.slice(0, s.caretPos - 1) + s.text.slice(s.caretPos);
-                s.caretPos = s.caretPos - 1;
-            }
-        }
-        _ti_render(entry); _ti_notify(entry);
-        return;
-    }
-    if (kc >= 32 && kc <= 126) { /* Printable */
-        _ti_delSel(s);
-        s.text = s.text.slice(0, s.caretPos) + String.fromCharCode(kc) + s.text.slice(s.caretPos);
-        s.caretPos = s.caretPos + 1;
-        _ti_render(entry); _ti_notify(entry);
-        return;
-    }
-}
-
-/* ---- Special keys (WM_KEYDOWN) ---- */
-function _ti_handleKeyDown(entry, ev) {
-    var s = entry.state;
-    var kc = ev.keyCode;
-    var ctrl = ev.ctrlKey;
-    var shift = ev.shiftKey;
-    s.blinkOn = true;
-
-    if (kc === 37) { /* Left */
-        if (shift) {
-            if (s.selAnchor === -1) s.selAnchor = s.caretPos;
-            s.caretPos = ctrl ? _ti_wordLeft(s.text, s.caretPos) : Math.max(0, s.caretPos - 1);
-        } else {
-            if (_ti_hasSel(s)) { s.caretPos = Math.min(s.selAnchor, s.caretPos); }
-            else { s.caretPos = ctrl ? _ti_wordLeft(s.text, s.caretPos) : Math.max(0, s.caretPos - 1); }
-            s.selAnchor = -1;
-        }
-        ev.stopPropagation(); _ti_render(entry); return;
-    }
-    if (kc === 39) { /* Right */
-        if (shift) {
-            if (s.selAnchor === -1) s.selAnchor = s.caretPos;
-            s.caretPos = ctrl ? _ti_wordRight(s.text, s.caretPos) : Math.min(s.text.length, s.caretPos + 1);
-        } else {
-            if (_ti_hasSel(s)) { s.caretPos = Math.max(s.selAnchor, s.caretPos); }
-            else { s.caretPos = ctrl ? _ti_wordRight(s.text, s.caretPos) : Math.min(s.text.length, s.caretPos + 1); }
-            s.selAnchor = -1;
-        }
-        ev.stopPropagation(); _ti_render(entry); return;
-    }
-    if (kc === 36) { /* Home */
-        if (shift) { if (s.selAnchor === -1) s.selAnchor = s.caretPos; }
-        else { s.selAnchor = -1; }
-        s.caretPos = 0;
-        ev.stopPropagation(); _ti_render(entry); return;
-    }
-    if (kc === 35) { /* End */
-        if (shift) { if (s.selAnchor === -1) s.selAnchor = s.caretPos; }
-        else { s.selAnchor = -1; }
-        s.caretPos = s.text.length;
-        ev.stopPropagation(); _ti_render(entry); return;
-    }
-    if (kc === 46) { /* Delete */
-        if (_ti_hasSel(s)) { _ti_delSel(s); }
-        else if (s.caretPos < s.text.length) {
-            if (ctrl) {
-                var we = _ti_wordRight(s.text, s.caretPos);
-                s.text = s.text.slice(0, s.caretPos) + s.text.slice(we);
-            } else {
-                s.text = s.text.slice(0, s.caretPos) + s.text.slice(s.caretPos + 1);
-            }
-        }
-        ev.stopPropagation(); _ti_render(entry); _ti_notify(entry); return;
-    }
-}
-
-/* ---- Selection helpers ---- */
-function _ti_hasSel(s) { return s.selAnchor >= 0 && s.selAnchor !== s.caretPos; }
-function _ti_getSelText(s) {
-    if (!_ti_hasSel(s)) return "";
-    return s.text.slice(Math.min(s.selAnchor, s.caretPos), Math.max(s.selAnchor, s.caretPos));
-}
-function _ti_delSel(s) {
-    if (!_ti_hasSel(s)) return;
-    var a = Math.min(s.selAnchor, s.caretPos);
-    var b = Math.max(s.selAnchor, s.caretPos);
-    s.text = s.text.slice(0, a) + s.text.slice(b);
-    s.caretPos = a;
-    s.selAnchor = -1;
-}
-
-/* ---- Word boundaries ---- */
-function _ti_wordLeft(text, pos) {
-    if (pos <= 0) return 0;
-    pos = pos - 1;
-    while (pos > 0 && text.charAt(pos) === ' ') pos = pos - 1;
-    while (pos > 0 && text.charAt(pos - 1) !== ' ') pos = pos - 1;
-    return pos;
-}
-function _ti_wordRight(text, pos) {
-    var len = text.length;
-    if (pos >= len) return len;
-    while (pos < len && text.charAt(pos) !== ' ') pos = pos + 1;
-    while (pos < len && text.charAt(pos) === ' ') pos = pos + 1;
-    return pos;
-}
-
-/* ================================================================
-   Rendering — position caret, selection, text scroll
-   ================================================================ */
-function _ti_render(entry) {
-    var s = entry.state;
-    var txt = _ti_displayText(s);
-
-    /* Update text content (never insert caret chars!) */
-    entry.textEl.setAttribute("text", txt);
-
-    /* Placeholder visibility */
-    if (entry.phEl) {
-        if (s.text.length === 0 && !s.focused) {
-            entry.phEl.setAttribute("text", s.placeholder);
-        } else {
-            entry.phEl.setAttribute("text", "");
-        }
-    }
-
-    /* Get host dimensions for scroll calculation */
-    var rect = entry.host.getBoundingRect();
-    var hostW = rect.width;
-    var visW = hostW - _ti_padLeft - 8; /* right padding */
-
-    /* Pixel position of caret in text */
-    var cpx = _ti_caretPx(entry);
-
-    /* Scroll to keep caret visible */
-    if (cpx - s.scrollX > visW) {
-        s.scrollX = cpx - visW + 2;
-    }
-    if (cpx - s.scrollX < 0) {
-        s.scrollX = cpx;
-    }
-    if (s.scrollX < 0) s.scrollX = 0;
-
-    /* Position text element (shifted by scroll) */
-    entry.textEl.setAttribute("x", _ti_padLeft - s.scrollX);
-
-    /* Position caret */
-    var caretVisX = _ti_padLeft + cpx - s.scrollX;
-    entry.caretEl.setAttribute("x", caretVisX);
-    _ti_updateCaret(entry);
-
-    /* Position selection highlight */
-    if (entry.selEl) {
-        if (_ti_hasSel(s) && s.focused) {
-            var selStart = Math.min(s.selAnchor, s.caretPos);
-            var selEnd = Math.max(s.selAnchor, s.caretPos);
-            var ssPx = document.measureText(txt.slice(0, selStart), _ti_fontSize);
-            var sePx = document.measureText(txt.slice(0, selEnd), _ti_fontSize);
-            var selX = _ti_padLeft + ssPx - s.scrollX;
-            var selW = sePx - ssPx;
-            entry.selEl.setAttribute("x", selX);
-            entry.selEl.setAttribute("width", selW);
-            entry.selEl.setAttribute("bg", "#89B4FA44");
-        } else {
-            entry.selEl.setAttribute("width", 0);
-            entry.selEl.setAttribute("bg", "#00000000");
-        }
-    }
-}
-
-/* ---- Update caret visibility (blink) ---- */
-function _ti_updateCaret(entry) {
-    var s = entry.state;
-    if (s.focused && s.blinkOn) {
-        entry.caretEl.setAttribute("bg", "#CDD6F4");
-    } else {
-        entry.caretEl.setAttribute("bg", "#00000000");
-    }
-}
-
-/* ---- Notify host ---- */
-function _ti_notify(entry) {
-    entry.host.setAttribute("value", entry.state.text);
-}
-
-/* ---- Public API ---- */
-function getInputValue(id) {
-    var i = 0;
-    for (i = 0; i < _ti_inputs.length; i++) {
-        if (_ti_inputs[i].host.getAttribute("id") === id) return _ti_inputs[i].state.text;
-    }
-    return "";
-}
-function setInputValue(id, val) {
-    var i = 0;
-    for (i = 0; i < _ti_inputs.length; i++) {
-        var e = _ti_inputs[i];
-        if (e.host.getAttribute("id") === id) {
-            e.state.text = val;
-            e.state.caretPos = val.length;
-            e.state.selAnchor = -1;
-            e.state.scrollX = 0;
-            _ti_notify(e); _ti_render(e);
+            s.text = s.text.slice(0, s.caretPos) + String.fromCharCode(kc) + s.text.slice(s.caretPos);
+            s.caretPos = s.caretPos + 1;
+            var actType = _ti_isSep(String.fromCharCode(kc)) ? "punct" : "type";
+            _ti_commit(s, actType);
+            _ti_render(entry); _ti_notify(entry);
             return;
         }
     }
-}
 
-_ti_init();
+    /* ---- Special keys (WM_KEYDOWN) ---- */
+    function _ti_handleKeyDown(entry, ev) {
+        var s = entry.state;
+        var kc = ev.keyCode;
+        var ctrl = ev.ctrlKey;
+        var shift = ev.shiftKey;
+        s.blinkOn = true;
+
+        if (kc === 37) { /* Left */
+            if (shift) {
+                if (s.selAnchor === -1) s.selAnchor = s.caretPos;
+                s.caretPos = ctrl ? _ti_wordLeft(s.text, s.caretPos) : Math.max(0, s.caretPos - 1);
+            } else {
+                if (_ti_hasSel(s)) { s.caretPos = Math.min(s.selAnchor, s.caretPos); }
+                else { s.caretPos = ctrl ? _ti_wordLeft(s.text, s.caretPos) : Math.max(0, s.caretPos - 1); }
+                s.selAnchor = -1;
+            }
+            ev.stopPropagation(); _ti_render(entry); return;
+        }
+        if (kc === 39) { /* Right */
+            if (shift) {
+                if (s.selAnchor === -1) s.selAnchor = s.caretPos;
+                s.caretPos = ctrl ? _ti_wordRight(s.text, s.caretPos) : Math.min(s.text.length, s.caretPos + 1);
+            } else {
+                if (_ti_hasSel(s)) { s.caretPos = Math.max(s.selAnchor, s.caretPos); }
+                else { s.caretPos = ctrl ? _ti_wordRight(s.text, s.caretPos) : Math.min(s.text.length, s.caretPos + 1); }
+                s.selAnchor = -1;
+            }
+            ev.stopPropagation(); _ti_render(entry); return;
+        }
+        if (kc === 36) { /* Home */
+            if (shift) { if (s.selAnchor === -1) s.selAnchor = s.caretPos; }
+            else { s.selAnchor = -1; }
+            s.caretPos = 0;
+            ev.stopPropagation(); _ti_render(entry); return;
+        }
+        if (kc === 35) { /* End */
+            if (shift) { if (s.selAnchor === -1) s.selAnchor = s.caretPos; }
+            else { s.selAnchor = -1; }
+            s.caretPos = s.text.length;
+            ev.stopPropagation(); _ti_render(entry); return;
+        }
+        if (kc === 46) { /* Delete */
+            if (_ti_hasSel(s)) { _ti_delSel(s); _ti_commit(s, "del"); }
+            else if (s.caretPos < s.text.length) {
+                if (ctrl) {
+                    var we = _ti_wordRight(s.text, s.caretPos);
+                    s.text = s.text.slice(0, s.caretPos) + s.text.slice(we);
+                } else {
+                    s.text = s.text.slice(0, s.caretPos) + s.text.slice(s.caretPos + 1);
+                }
+                _ti_commit(s, "del");
+            }
+            ev.stopPropagation(); _ti_render(entry); _ti_notify(entry); return;
+        }
+    }
+
+    /* ---- Selection helpers ---- */
+    function _ti_hasSel(s) { return s.selAnchor >= 0 && s.selAnchor !== s.caretPos; }
+    function _ti_getSelText(s) {
+        if (!_ti_hasSel(s)) return "";
+        return s.text.slice(Math.min(s.selAnchor, s.caretPos), Math.max(s.selAnchor, s.caretPos));
+    }
+    function _ti_delSel(s) {
+        if (!_ti_hasSel(s)) return;
+        var a = Math.min(s.selAnchor, s.caretPos);
+        var b = Math.max(s.selAnchor, s.caretPos);
+        s.text = s.text.slice(0, a) + s.text.slice(b);
+        s.caretPos = a;
+        s.selAnchor = -1;
+    }
+
+    /* ---- Word boundaries ---- */
+    function _ti_isSep(c) {
+        if (!c) return false;
+        var code = c.charCodeAt(0);
+        if (code === 32) return true;
+        if (code >= 33 && code <= 47) return true;  // punctuation !"#$%&'()*+,-./
+        if (code >= 58 && code <= 64) return true;  // punctuation :;<=>?@
+        if (code >= 91 && code <= 96) return true;  // punctuation [\]^_`
+        if (code >= 123 && code <= 126) return true;// punctuation {|}~
+        return false;
+    }
+
+    function _ti_wordLeft(text, pos) {
+        if (pos <= 0) return 0;
+        pos = pos - 1;
+        while (pos > 0 && _ti_isSep(text.charAt(pos))) pos = pos - 1;
+        while (pos > 0 && !_ti_isSep(text.charAt(pos - 1))) pos = pos - 1;
+        return pos;
+    }
+    function _ti_wordRight(text, pos) {
+        var len = text.length;
+        if (pos >= len) return len;
+        while (pos < len && !_ti_isSep(text.charAt(pos))) pos = pos + 1;
+        while (pos < len && _ti_isSep(text.charAt(pos))) pos = pos + 1;
+        return pos;
+    }
+
+    /* ---- Undo/Redo State Commit ---- */
+    function _ti_commit(s, actionType) {
+        s.history.length = s.historyIdx + 1;
+        var last = s.history[s.historyIdx];
+
+        if (last.text === s.text) {
+            last.caretPos = s.caretPos; last.selAnchor = s.selAnchor;
+            return;
+        }
+
+        if ((actionType === "type" && s.lastAction === "type") || 
+        (actionType === "bksp" && s.lastAction === "bksp")) {
+            last.text = s.text;
+            last.caretPos = s.caretPos;
+            last.selAnchor = s.selAnchor;
+            return;
+        }
+
+        s.history.push({text: s.text, caretPos: s.caretPos, selAnchor: s.selAnchor});
+        if (s.history.length > 20) s.history.shift();
+        s.historyIdx = s.history.length - 1;
+        s.lastAction = actionType;
+    }
+
+    /* ================================================================
+    Rendering — position caret, selection, text scroll
+    ================================================================ */
+    function _ti_render(entry) {
+        var s = entry.state;
+        var txt = _ti_displayText(s);
+
+        /* Update text content (never insert caret chars!) */
+        entry.textEl.setAttribute("text", txt);
+
+        /* Placeholder visibility */
+        if (entry.phEl) {
+            if (s.text.length === 0 && !s.focused) {
+                entry.phEl.setAttribute("text", s.placeholder);
+            } else {
+                entry.phEl.setAttribute("text", "");
+            }
+        }
+
+        /* Get host dimensions for scroll calculation */
+        var rect = entry.host.getBoundingRect();
+        var hostW = rect.width;
+        var visW = hostW - _ti_padLeft - 8; /* right padding */
+
+        /* Pixel position of caret in text */
+        var cpx = _ti_caretPx(entry);
+
+        /* Scroll to keep caret visible */
+        if (cpx - s.scrollX > visW) {
+            s.scrollX = cpx - visW + 2;
+        }
+        if (cpx - s.scrollX < 0) {
+            s.scrollX = cpx;
+        }
+        if (s.scrollX < 0) s.scrollX = 0;
+
+        /* Position text element (shifted by scroll) */
+        entry.textEl.setAttribute("x", _ti_padLeft - s.scrollX);
+
+        /* Position caret */
+        var caretVisX = _ti_padLeft + cpx - s.scrollX;
+        entry.caretEl.setAttribute("x", caretVisX);
+        _ti_updateCaret(entry);
+
+        /* Position selection highlight */
+        if (entry.selEl) {
+            if (_ti_hasSel(s) && s.focused) {
+                var selStart = Math.min(s.selAnchor, s.caretPos);
+                var selEnd = Math.max(s.selAnchor, s.caretPos);
+                var ssPx = document.measureText(txt.slice(0, selStart), _ti_fontSize);
+                var sePx = document.measureText(txt.slice(0, selEnd), _ti_fontSize);
+                var selX = _ti_padLeft + ssPx - s.scrollX;
+                var selW = sePx - ssPx;
+                entry.selEl.setAttribute("x", selX);
+                entry.selEl.setAttribute("width", selW);
+                entry.selEl.setAttribute("opacity", "1");
+            } else {
+                entry.selEl.setAttribute("width", 0);
+                entry.selEl.setAttribute("opacity", "0");
+            }
+        }
+    }
+
+    /* ---- Update caret visibility (blink) ---- */
+    function _ti_updateCaret(entry) {
+        var s = entry.state;
+        if (s.focused && s.blinkOn) {
+            entry.caretEl.setAttribute("opacity", "1");
+        } else {
+            entry.caretEl.setAttribute("opacity", "0");
+        }
+    }
+
+    /* ---- Notify host ---- */
+    function _ti_notify(entry) {
+        entry.host.setAttribute("value", entry.state.text);
+    }
+
+    /* ---- Public API ---- */
+    function getInputValue(id) {
+        var i = 0;
+        for (i = 0; i < _ti_inputs.length; i++) {
+            if (_ti_inputs[i].host.getAttribute("id") === id) return _ti_inputs[i].state.text;
+        }
+        return "";
+    }
+    function setInputValue(id, val) {
+        var i = 0;
+        for (i = 0; i < _ti_inputs.length; i++) {
+            var e = _ti_inputs[i];
+            if (e.host.getAttribute("id") === id) {
+                e.state.text = val;
+                e.state.caretPos = val.length;
+                e.state.selAnchor = -1;
+                e.state.scrollX = 0;
+                _ti_notify(e); _ti_render(e);
+                return;
+            }
+        }
+    }
+
+    _ti_init();
 </script>
