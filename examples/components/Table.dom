@@ -1,0 +1,125 @@
+<style>
+    /* ========================================
+       Table Component - Design System
+       Provides CSS classes for table primitives
+       ======================================== */
+
+    Table {
+        bg: var(--table-bg, #11111B);
+        border: var(--table-border, #313244);
+        border-radius: 8;
+        overflow: hidden;
+    }
+
+    /* -- Header Cells -- */
+    .th {
+        bg: #1A1A2E;
+        color: #7F849C;
+        font-size: 11;
+        font-weight: bold;
+        padding-left: 12;
+        padding-top: 9;
+        cursor: pointer;
+        transition: bg 150ms ease, color 150ms ease;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    .th:hover {
+        bg: #252545;
+        color: #CDD6F4;
+    }
+
+    /* -- Body Row -- */
+    .trow {
+        cursor: default;
+        transition: bg 80ms ease;
+    }
+    .trow:hover {
+        bg: #252545;
+    }
+
+    /* -- Body Cells -- */
+    .tcell {
+        color: #BAC2DE;
+        font-size: 13;
+        padding-left: 12;
+        padding-top: 5;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    .tcell-id {
+        color: #585B70;
+        font-size: 12;
+        text-align: center;
+        vertical-align: center;
+        padding-top: 5;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    .tcell-num {
+        color: #BAC2DE;
+        font-size: 13;
+        text-align: right;
+        padding-right: 12;
+        padding-top: 5;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    .tcell-status {
+        font-size: 12;
+        font-weight: bold;
+        text-align: center;
+        padding-top: 5;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    /* -- Pagination Controls -- */
+    .page-btn {
+        bg: #181825;
+        color: #BAC2DE;
+        border: #313244;
+        border-radius: 6;
+        cursor: pointer;
+        font-size: 13;
+        text-align: center;
+        vertical-align: center;
+        transition: bg 120ms ease, border 120ms ease;
+    }
+    .page-btn:hover {
+        bg: #313244;
+        border: #45475A;
+        color: #CDD6F4;
+    }
+    .page-btn:active {
+        bg: #45475A;
+    }
+    .page-info {
+        color: #6C7086;
+        font-size: 12;
+        text-align: center;
+        vertical-align: center;
+    }
+
+    /* -- Sort Indicator (header active) -- */
+    .th-active {
+        bg: #252545;
+        color: #89B4FA;
+        font-size: 11;
+        font-weight: bold;
+        padding-left: 12;
+        padding-top: 9;
+        cursor: pointer;
+        transition: bg 150ms ease, color 150ms ease;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    .th-active:hover {
+        bg: #2E2E50;
+        color: #B4BEFE;
+    }
+</style>
+
+<ui width="100%" height="100%">
+    <View width="100%" height="100%" overflow="hidden" />
+</ui>

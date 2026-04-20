@@ -378,7 +378,7 @@ public:
             return Value::Str(sharedEl->Get(key));
         }));
 
-        // setAttribute
+        // setAttribute (score 50 so JS overrides CSS rules which use scores 10-40)
         wrapper->setProperty("setAttribute", Value::Native([sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
             if (args.size() < 2) return Value::Undefined();
             std::string key = args[0]->toString();
@@ -386,7 +386,7 @@ public:
             if (key == "text" || key == "innerText") {
                 sharedEl->innerText = UnescapeXML(val);
             } else {
-                sharedEl->SetProp(key, val);
+                sharedEl->SetProp(key, val, 50);
             }
             if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
             return Value::Undefined();
@@ -511,7 +511,50 @@ public:
         }));
 
         wrapper->setProperty("appendChild", Value::Native([this, sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
-            // Minimal: just trigger repaint. Full DOM manipulation would require unwrapping.
+            if (args.empty()) return Value::Undefined();
+            auto childWrapper = args[0];
+            for (auto& ec : elementCache) {
+                if (ec.second.get() == childWrapper.get()) {
+                    auto childShared = ec.first->shared_from_this();
+                    // Remove from previous parent if any
+                    if (ec.first->parent) {
+                        ec.first->parent->shared_from_this()->RemoveChild(childShared);
+                    } else if (ec.first->shadowHost) {
+                        ec.first->shadowHost->shared_from_this()->RemoveChild(childShared);
+                    }
+                    sharedEl->Adopt(childShared, false);
+                    break;
+                }
+            }
+            if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
+            return Value::Undefined();
+        }));
+
+        wrapper->setProperty("removeChild", Value::Native([this, sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            auto childWrapper = args[0];
+            for (auto& ec : elementCache) {
+                if (ec.second.get() == childWrapper.get()) {
+                    sharedEl->RemoveChild(ec.first->shared_from_this());
+                    break;
+                }
+            }
+            if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
+            return Value::Undefined();
+        }));
+
+        wrapper->setProperty("clearChildren", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            sharedEl->children.clear();
+            if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
+            return Value::Undefined();
+        }));
+
+        wrapper->setProperty("remove", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            if (sharedEl->parent) {
+                sharedEl->parent->shared_from_this()->RemoveChild(sharedEl);
+            } else if (sharedEl->shadowHost) {
+                sharedEl->shadowHost->shared_from_this()->RemoveChild(sharedEl);
+            }
             if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
             return Value::Undefined();
         }));
