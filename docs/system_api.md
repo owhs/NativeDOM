@@ -24,6 +24,8 @@ NativeDOM permits incredibly powerful OS-level instructions natively in your roo
     Configures User Access Control elevation triggers:
     - `"optional"`: Standard.
     - `"required"`: Probes OS TokenElevation on C++ constructor boot logic. Forces a `ShellExecuteA(runas)` administrative OS overlay and tears down unprivileged processes autonomously prior to engine mapping!
+*   `hidden`
+    - `"true"`: Silently suppresses the master `ShowWindow` procedure! The engine executes perfectly in the background devoid of visual flashes, highly optimal for `sys.tray` applications.
 
 ---
 
@@ -140,6 +142,29 @@ NativeDOM correctly structures loops to inherently map AST pointers straight to 
 
 ---
 
+## Tray Notification Management (sys.tray.*)
+
+Create seamless hidden-background applications via the Native Desktop tray menu! 
+Ensure your UI boots hidden using `<ui hidden="true">` to utilize these gracefully.
+
+*   `sys.tray.setIcon(filepath: string, tooltipText?: string)`
+    Spawns (or modifies) the underlying OS `Shell_NotifyIcon` tray module mapped to your engine. Providing `"self"` automatically extracts your existing `.exe` icon dynamically! 
+*   `sys.tray.setMenu(items: Array<Object>)`
+    Structurally instantiates a Native OS Win32 Context Menu populating immediately upon a Tray Icon Right-Click.
+    ```javascript
+    sys.tray.setMenu([
+        { id: 1, label: "Show Window" },
+        { separator: true },
+        { id: 2, label: "Exit App" }
+    ]);
+    ```
+*   `document.addEventListener("traymenu", function(e))`
+    Automatically dispatches natively from Windows Context Menu triggers routing the chosen `{id}` integers out to your logic tree.
+*   `sys.tray.remove()`
+    Explicitly destroys the persistent tray icon from memory immediately.
+
+---
+
 ## Screen & Inputs
 
 ### sys.screen.*
@@ -161,6 +186,8 @@ NativeDOM correctly structures loops to inherently map AST pointers straight to 
         return true; // Completely stops Windows from detecting this key
     });
     ```
+*   `sys.keyboard.sendText(text: string)`
+    Natively streams text strings unconditionally into generic OS-level hardware queues evaluating exclusively inside the Unicode layer via `KEYEVENTF_UNICODE`. Flawlessly skips any character mappings/parsing glitches encountered using `SendKeys`, ensuring output identical to your string.
 
 ### sys.clipboard.*
 *   `sys.clipboard.getText() -> string`

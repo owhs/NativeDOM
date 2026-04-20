@@ -1,0 +1,125 @@
+<ui title="NativeDOM Tray App" width="400" height="300" hidden="true" instances="forceReplace">
+    <div layout="col" width="100%" height="100%" padding="20" gap="10" bg="#1e1e2e" color="#cdd6f4" font-family="Segoe UI">
+        <Text text="NativeDOM Tray Application" font-size="20" font-weight="bold" />
+        <Text text="This window booted completely hidden!" />
+        <Text text="You invoked it via the Sys.Tray API context menu!" />
+        <div id="btnHide" padding="8 16" bg="#89b4fa" color="#1e1e2e" font-weight="bold" border-radius="4" cursor="pointer" width="120" align="center">Hide to Tray</div>
+    </div>
+</ui>
+
+<script>
+    let modeHello = false;
+    let modeAggressive = false;
+
+    let ringBuffer = [];
+    let awaitingAggressiveNextChar = false;
+
+    let helloSeq = [72, 69, 76, 76, 79]; // H E L L O
+
+    const menuId = {
+        SHOW: 1,
+        TOGGLE_HELLO: 2,
+        TOGGLE_AGGRESSIVE: 3,
+        EXIT: 4
+    };
+
+    function refreshTray() {
+        sys.tray.setMenu([
+            { id: menuId.SHOW, label: "Show Control Panel" },
+            { separator: true },
+            { id: menuId.TOGGLE_HELLO, label: modeHello ? "[x] Auto-cap 'hello'" : "[ ] Auto-cap 'hello'" },
+            { id: menuId.TOGGLE_AGGRESSIVE, label: modeAggressive ? "[x] Aggressive Sentences (.)" : "[ ] Aggressive Sentences (.)" },
+            { separator: true },
+            { id: menuId.EXIT, label: "Exit Application" }
+        ]);
+    }
+
+    // Initialize Tray
+    sys.tray.setIcon("self", "NativeDOM Keyboard Hook");
+    refreshTray();
+
+    document.addEventListener("traymenu", function(e) {
+        if (e.id === menuId.SHOW) {
+            sys.window.show();
+            sys.window.focus();
+        } else if (e.id === menuId.TOGGLE_HELLO) {
+            modeHello = !modeHello;
+            ringBuffer = [];
+            refreshTray();
+        } else if (e.id === menuId.TOGGLE_AGGRESSIVE) {
+            modeAggressive = !modeAggressive;
+            awaitingAggressiveNextChar = false;
+            ringBuffer = [];
+            refreshTray();
+        } else if (e.id === menuId.EXIT) {
+            sys.tray.remove(); // Cleanup tray
+            sys.keyboard.unhook(); // Cleanup hook
+            sys.window.close(); // Equivalent of exiting
+        }
+    });
+
+    document.getElementById("btnHide").addEventListener("click", function() {
+        sys.window.hide();
+    });
+
+    // Handle close button explicitly to hide instead of quit
+    document.addEventListener("close", function(e) {
+        e.preventDefault();
+        sys.window.hide();
+    });
+
+    // Start Low Level Keyboard Hook substitution engine
+    sys.keyboard.hook(function(e) {
+        if (e.flags & 128) return; // ignore KEYUP
+
+        let key = e.vkCode;
+        
+        if (modeHello) {
+            if (key === 32) { // space
+                if (ringBuffer.length >= 5) {
+                    let match = true;
+                    for (let i = 0; i < 5; i++) {
+                        if (ringBuffer[ringBuffer.length - 5 + i] !== helloSeq[i]) match = false;
+                    }
+                    if (match) {
+                        // Swallow this space immediately!
+                        let shell = sys.com.create("WScript.Shell");
+                        if (shell) {
+                            shell.call("SendKeys", "{BACKSPACE 5}");
+                            sys.sleep(20);
+                            sys.keyboard.sendText("Hello ");
+                            shell.release();
+                        }
+                        ringBuffer = [];
+                        return true; // block the original space
+                    }
+                }
+            }
+            ringBuffer.push(key);
+            if (ringBuffer.length > 20) ringBuffer.shift(); // prevent array memory leak
+        }
+
+        if (modeAggressive) {
+            if (awaitingAggressiveNextChar) {
+                if (key >= 65 && key <= 90) { // A-Z
+                    awaitingAggressiveNextChar = false;
+                    sys.keyboard.sendText(String.fromCharCode(key).toUpperCase());
+                    return true; // block the lowercase!
+                }
+                if (key !== 16 && key !== 160 && key !== 161) { // ignore SHIFT keys
+                    awaitingAggressiveNextChar = false;
+                }
+            }
+            
+            if (key === 190 || key === 110) { // dot or numpad decimal
+                awaitingAggressiveNextChar = false; // reset
+                ringBuffer.push(190);
+            } else if (key === 32) { // space
+                if (ringBuffer.length > 0 && ringBuffer[ringBuffer.length - 1] === 190) {
+                    awaitingAggressiveNextChar = true;
+                }
+                ringBuffer.push(32);
+            }
+        }
+    });
+</script>

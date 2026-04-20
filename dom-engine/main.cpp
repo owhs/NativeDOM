@@ -367,6 +367,32 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
 
+    if (msg == WM_USER + 1) {
+        if (LOWORD(lp) == WM_RBUTTONUP || LOWORD(lp) == WM_LBUTTONUP) {
+            POINT pt;
+            GetCursorPos(&pt);
+            SetForegroundWindow(hwnd);
+            extern HMENU g_trayMenu;
+            if (g_trayMenu) {
+                TrackPopupMenu(g_trayMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL);
+            }
+            PostMessage(hwnd, WM_NULL, 0, 0);
+        }
+        return 0;
+    }
+
+    if (msg == WM_COMMAND) {
+        extern HMENU g_trayMenu;
+        if (g_bridge && g_trayMenu) {
+            int id = LOWORD(wp);
+            auto eventObj = Value::Object();
+            eventObj->setProperty("type", Value::Str("traymenu"));
+            eventObj->setProperty("id", Value::Num((double)id));
+            g_bridge->dispatchScriptEvent(appRoot.get(), "traymenu", eventObj);
+        }
+        return 0;
+    }
+
     if (!appRoot) return DefWindowProc(hwnd, msg, wp, lp);
 
     switch (msg) {
@@ -1264,7 +1290,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR lpCmdLine, int) {
 
     DragAcceptFiles(g_hwnd, TRUE);
 
-    ShowWindow(g_hwnd, SW_SHOW);
+    if (appRoot->Get("hidden") != "true") {
+        ShowWindow(g_hwnd, SW_SHOW);
+    }
     UpdateWindow(g_hwnd);
 
     // ---- Initialize Script Bridge ----

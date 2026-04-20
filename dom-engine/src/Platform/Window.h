@@ -9,6 +9,7 @@ extern HWND g_hwnd;
 inline HHOOK g_keyboardHook = NULL;
 inline ValuePtr g_keyboardHookCallback = nullptr;
 inline Interpreter* g_keyboardHookInterp = nullptr;
+inline HMENU g_trayMenu = NULL;
 
 extern void sysLog(const std::string& msg);
 
@@ -282,6 +283,11 @@ public:
 
         windowObj->setProperty("restore", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
             ShowWindow(g_hwnd, SW_RESTORE);
+            return Value::Undefined();
+        }));
+
+        windowObj->setProperty("close", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            PostMessage(g_hwnd, WM_CLOSE, 0, 0);
             return Value::Undefined();
         }));
 
@@ -573,6 +579,71 @@ public:
         }));
 
         sysObj->setProperty("keyboard", keyboardObj);
+
+        // ---- sys.tray ----
+        auto trayObj = Value::Object();
+        trayObj->setProperty("setIcon", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty()) return Value::Undefined();
+            std::string path = args[0]->toString();
+            std::string tooltip = args.size() > 1 ? args[1]->toString() : "NativeDOM Tray Application";
+            
+            HICON hIcon = NULL;
+            if (path == "" || path == "self") {
+                char exePath[MAX_PATH];
+                GetModuleFileNameA(NULL, exePath, MAX_PATH);
+                hIcon = ExtractIconA(NULL, exePath, 0);
+            } else {
+                hIcon = (HICON)LoadImageA(NULL, path.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+            }
+            if (!hIcon) hIcon = LoadIcon(NULL, IDI_APPLICATION);
+            
+            NOTIFYICONDATAA nid = {};
+            nid.cbSize = sizeof(nid);
+            nid.hWnd = g_hwnd;
+            nid.uID = 2000;
+            nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+            nid.uCallbackMessage = WM_USER + 1;
+            nid.hIcon = hIcon;
+            strncpy_s(nid.szTip, tooltip.c_str(), sizeof(nid.szTip) - 1);
+            
+            if (!Shell_NotifyIconA(NIM_MODIFY, &nid)) {
+                Shell_NotifyIconA(NIM_ADD, &nid);
+            }
+            return Value::Bool(true);
+        }));
+
+        trayObj->setProperty("setMenu", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty() || args[0]->type != ValueType::Array) return Value::Bool(false);
+            
+            if (g_trayMenu) DestroyMenu(g_trayMenu);
+            g_trayMenu = CreatePopupMenu();
+            
+            for (auto& item : args[0]->elements) {
+                if (item->type == ValueType::Object) {
+                    auto labelOpt = item->getProperty("label");
+                    auto idOpt = item->getProperty("id");
+                    auto sepOpt = item->getProperty("separator");
+                    
+                    if (sepOpt && sepOpt->isTruthy()) {
+                        AppendMenuA(g_trayMenu, MF_SEPARATOR, 0, NULL);
+                    } else if (labelOpt && idOpt) {
+                        AppendMenuA(g_trayMenu, MF_STRING, (UINT_PTR)idOpt->toNumber(), labelOpt->toString().c_str());
+                    }
+                }
+            }
+            return Value::Bool(true);
+        }));
+
+        trayObj->setProperty("remove", Value::Native([](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            NOTIFYICONDATAA nid = {};
+            nid.cbSize = sizeof(nid);
+            nid.hWnd = g_hwnd;
+            nid.uID = 2000;
+            Shell_NotifyIconA(NIM_DELETE, &nid);
+            return Value::Undefined();
+        }));
+
+        sysObj->setProperty("tray", trayObj);
 
         // ---- sys.clipboard ----
         auto clipObj = Value::Object();

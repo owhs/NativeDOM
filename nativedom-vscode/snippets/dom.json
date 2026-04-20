@@ -132,7 +132,7 @@
     "prefix": "dom-ui",
     "description": "NativeDOM root <ui> element with common attributes",
     "body": [
-      "<ui frameless=\"${1:true}\" id=\"${2:app}\" title=\"${3:App Title}\" width=\"${4:800}\" height=\"${5:600}\" bg=\"${6:#1E1E2E}\" instances=\"${7|allow,focusIfOpen,forceReplace,warn|}\" uac=\"${8|optional,required|}\">",
+      "<ui frameless=\"${1:true}\" id=\"${2:app}\" title=\"${3:App Title}\" width=\"${4:800}\" height=\"${5:600}\" bg=\"${6:#1E1E2E}\" instances=\"${7|allow,focusIfOpen,forceReplace,warn|}\" uac=\"${8|optional,required|}\" hidden=\"${9|false,true|}\">",
       "    $0",
       "</ui>"
     ]
@@ -283,6 +283,58 @@
     "description": "NativeDOM OS Target Window Focus",
     "body": [
       "sys.window.focus(\"${1:Process Name}\");"
+    ]
+  },
+
+  "Sys Tray Set Menu": {
+    "prefix": "dom-traymenu-set",
+    "description": "Setup a System Tray context menu natively.",
+    "body": [
+      "sys.tray.setMenu([",
+      "    { id: 1, label: \"${1:Show App}\" },",
+      "    { separator: true },",
+      "    { id: 2, label: \"${2:Exit}\" }",
+      "]);"
+    ]
+  },
+
+  "Sys Tray Set Icon": {
+    "prefix": "dom-trayicon",
+    "description": "Setup Native System Tray Icon",
+    "body": [
+      "sys.tray.setIcon(\"${1:self}\", \"${2:Tooltip Text}\");"
+    ]
+  },
+
+  "Sys Tray Menu Event": {
+    "prefix": "dom-traymenu-event",
+    "description": "Listen for Tray context menu interacts natively",
+    "body": [
+      "document.addEventListener(\"traymenu\", function(e) {",
+      "    if(e.id === 1) sys.window.show();",
+      "});"
+    ]
+  },
+
+  "Sys Keyboard Hook": {
+    "prefix": "dom-keyboard-hook",
+    "description": "Register a Global Low Level Native Keyboard Hook",
+    "body": [
+      "sys.keyboard.hook(function(e) {",
+      "    if (e.flags & 128) return; // keyup event",
+      "    if (e.vkCode === ${1:32}) { // space",
+      "        // return true to swallow original keystroke",
+      "        return true;",
+      "    }",
+      "});"
+    ]
+  },
+
+  "Sys Keyboard Send Text": {
+    "prefix": "dom-keyboard-sendtext",
+    "description": "Natively map UNICODE keystrokes to hardware directly via SendInput",
+    "body": [
+      "sys.keyboard.sendText(\"${1:text}\");"
     ]
   },
 
