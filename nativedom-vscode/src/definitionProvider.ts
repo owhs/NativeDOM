@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
+import { inferVariableType } from './parserUtil';
+
 
 export class DomDefinitionProvider implements vscode.DefinitionProvider {
     provideDefinition(
@@ -91,6 +94,60 @@ export class DomDefinitionProvider implements vscode.DefinitionProvider {
                         new vscode.Position(0, 0)
                     );
                 }
+            }
+        }
+
+        // Go to Definition for Object Method Calls (e.g. browser.navigateToString)
+        const wordRange = document.getWordRangeAtPosition(position, /[\w]+\.[\w]+/);
+        if (wordRange) {
+            const word = document.getText(wordRange); // e.g. "browser.navigateToString"
+            const parts = word.split('.');
+            if (parts.length === 2) {
+                const prefix = parts[0];
+                const method = parts[1];
+
+                if (prefix === 'self') {
+                    // Search current document
+                    const fullText = document.getText();
+                    const rx = new RegExp(`self\\.${method}\\s*=`, 'g');
+                    const match = rx.exec(fullText);
+                    if (match) {
+                        return new vscode.Location(document.uri, document.positionAt(match.index));
+                    }
+                } else {
+                    // Try to infer cross-component
+                    const typeInfo = inferVariableType(prefix, document.getText(), document.uri);
+                    if (typeInfo.componentPath) {
+                        try {
+                            const compDocText = fs.readFileSync(typeInfo.componentPath, 'utf-8');
+                            const rx = new RegExp(`(?:self\\.${method}\\s*=\\s*(?:async\\s*)?function|function\\s+${method}\\s*\\()`, 'g');
+                            const match = rx.exec(compDocText);
+                            if (match) {
+                                // We need the Line and Character for the target file
+                                const lines = compDocText.substring(0, match.index).split('\n');
+                                const lineNum = lines.length - 1;
+                                const charNum = lines[lines.length - 1].length;
+                                return new vscode.Location(
+                                    vscode.Uri.file(typeInfo.componentPath),
+                                    new vscode.Position(lineNum, charNum)
+                                );
+                            }
+                        } catch(e) {}
+                    }
+                }
+            }
+        }
+
+        // Go to Definition for plain function calls (e.g. startTimer())
+        const plainWordRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_]+/);
+        if (plainWordRange) {
+            const word = document.getText(plainWordRange);
+            // Search current document for 'function word(' or 'self.word ='
+            const fullText = document.getText();
+            const rx = new RegExp(`(?:self\\.${word}\\s*=\\s*(?:async\\s*)?function|function\\s+${word}\\s*\\()`, 'g');
+            const match = rx.exec(fullText);
+            if (match) {
+                return new vscode.Location(document.uri, document.positionAt(match.index));
             }
         }
 

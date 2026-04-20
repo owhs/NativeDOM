@@ -2,7 +2,7 @@
   "name": "nativedom",
   "displayName": "NativeDOM",
   "description": "Comprehensive language support for NativeDOM .dom files — syntax highlighting, IntelliSense, snippets, hover docs, and diagnostics for the NativeDOM HTML/CSS/JS hybrid format.",
-  "version": "1.2.0",
+  "version": "1.6.3",
   "publisher": "nativedom",
   "engines": {
     "vscode": "^1.75.0"
@@ -91,7 +91,7 @@
     "commands": [
       {
         "command": "nativedom.runFile",
-        "title": "NativeDOM: Run Current .dom File",
+        "title": "Run NativeDOM Script",
         "icon": "$(play)"
       },
       {

@@ -4,6 +4,11 @@ import { DomHoverProvider } from './hoverProvider';
 import { DomDiagnosticProvider } from './diagnosticProvider';
 import { DomColorProvider } from './colorProvider';
 import { DomDefinitionProvider } from './definitionProvider';
+import { DomSignatureHelpProvider } from './signatureProvider';
+import { DomDocumentSymbolProvider } from './documentSymbolProvider';
+import { DomDocumentFormattingProvider } from './documentFormattingProvider';
+import { DomDocumentLinkProvider } from './documentLinkProvider';
+
 
 export function activate(context: vscode.ExtensionContext) {
     const selector: vscode.DocumentSelector = { language: 'dom', scheme: 'file' };
@@ -19,6 +24,12 @@ export function activate(context: vscode.ExtensionContext) {
     const hoverProvider = new DomHoverProvider();
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(selector, hoverProvider)
+    );
+
+    // ---- Signature Help ----
+    const signatureProvider = new DomSignatureHelpProvider();
+    context.subscriptions.push(
+        vscode.languages.registerSignatureHelpProvider(selector, signatureProvider, '(', ',')
     );
 
     // ---- Diagnostics ----
@@ -58,6 +69,26 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerDefinitionProvider(selector, definitionProvider)
     );
 
+    // ---- Document Symbol Provider (Outline View) ----
+    const symbolProvider = new DomDocumentSymbolProvider();
+    context.subscriptions.push(
+        vscode.languages.registerDocumentSymbolProvider(selector, symbolProvider)
+    );
+
+    // ---- Document Formatting Edit Provider (Beautifier / Formatter) ----
+    const formatProvider = new DomDocumentFormattingProvider();
+    context.subscriptions.push(
+        vscode.languages.registerDocumentFormattingEditProvider(selector, formatProvider)
+    );
+
+    // ---- Document Link Provider (CTRL+Click File Jumping) ----
+    const linkProvider = new DomDocumentLinkProvider();
+    context.subscriptions.push(
+        vscode.languages.registerDocumentLinkProvider(selector, linkProvider)
+    );
+
+
+
     // ---- Commands ----
     context.subscriptions.push(
         vscode.commands.registerCommand('nativedom.runFile', async () => {
@@ -93,7 +124,8 @@ export function activate(context: vscode.ExtensionContext) {
                 cwd: filePath.substring(0, filePath.lastIndexOf('\\')),
             });
             terminal.show();
-            terminal.sendText(`"${domExePath}" "${filePath}"`);
+            // Call operator & is REQUIRED in powershell when path has spaces or quotes
+            terminal.sendText(`& "${domExePath}" "${filePath}"`);
         }),
 
         vscode.commands.registerCommand('nativedom.buildBundle', async () => {

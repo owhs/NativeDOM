@@ -1,4 +1,10 @@
 import * as vscode from 'vscode';
+import { extractMethodsFromDocument, inferVariableType, extractCssVariables } from './parserUtil';
+import { 
+    sysMembers, windowMembers, screenMembers, keyboardMembers, 
+    clipboardMembers, comMembers, trayMembers, mathMembers, jsonMembers, 
+    elementInstanceMethods, comInstanceMethods 
+} from './apiDefinitions';
 
 // ---- NativeDOM Knowledge Base ----
 // All the element tags, attributes, CSS properties, and JS APIs
@@ -162,12 +168,12 @@ export class DomCompletionProvider implements vscode.CompletionItemProvider {
     private getZone(document: vscode.TextDocument, position: vscode.Position): 'html' | 'css' | 'js' {
         const text = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
 
-        // Count open/close style and script tags
-        const styleOpens = (text.match(/<style>/gi) || []).length;
+        // Robust tag counting ignoring attributes
+        const styleOpens = (text.match(/<style[^>]*>/gi) || []).length;
         const styleCloses = (text.match(/<\/style>/gi) || []).length;
         if (styleOpens > styleCloses) return 'css';
 
-        const scriptOpens = (text.match(/<script>/gi) || []).length;
+        const scriptOpens = (text.match(/<script[^>]*>/gi) || []).length;
         const scriptCloses = (text.match(/<\/script>/gi) || []).length;
         if (scriptOpens > scriptCloses) return 'js';
 
@@ -306,7 +312,13 @@ export class DomCompletionProvider implements vscode.CompletionItemProvider {
                 items.push(item);
             }
 
-            // CSS variable declarations
+            // CSS variable declarations dynamically scraped
+            const cssVars = extractCssVariables(document.getText());
+            for (const v of cssVars) {
+                const item = new vscode.CompletionItem(v, vscode.CompletionItemKind.Variable);
+                items.push(item);
+            }
+
             const varItem = new vscode.CompletionItem('--', vscode.CompletionItemKind.Variable);
             varItem.insertText = new vscode.SnippetString('--${1:var-name}: ${2:value};');
             varItem.documentation = 'Declare a CSS custom property (variable)';
@@ -345,174 +357,112 @@ export class DomCompletionProvider implements vscode.CompletionItemProvider {
         document: vscode.TextDocument,
         position: vscode.Position
     ): vscode.CompletionItem[] {
-        const items: vscode.CompletionItem[] = [];
+        try {
+            const items: vscode.CompletionItem[] = [];
 
-        // sys.* completions
-        if (textBefore.endsWith('sys.')) {
-            const sysMembers = [
-                { name: 'log', desc: 'Print to console, OutputDebugString, and sys_log.txt', sig: 'log(msg: string)' },
-                { name: 'time', desc: 'Microsecond system uptime (GetTickCount64)', sig: 'time() → number' },
-                { name: 'exec', desc: 'Fork a Windows sub-process', sig: 'exec(cmd: string, hidden?: bool) → number' },
-                { name: 'readText', desc: 'Blocking file read (UTF-8)', sig: 'readText(path: string) → string' },
-                { name: 'writeText', desc: 'Blocking file write', sig: 'writeText(path: string, data: string)' },
-                { name: 'loadScript', desc: 'Hot-load a .dom file', sig: 'loadScript(path: string, asNewProcess?: bool)' },
-                { name: 'dllCall', desc: 'FFI call returning number', sig: 'dllCall(dll, func, args[]) → number' },
-                { name: 'dllCallString', desc: 'FFI call returning string', sig: 'dllCallString(dll, func, args[]) → string' },
-                { name: 'loadExtension', desc: 'Load a C++ NativeDOM extension DLL', sig: 'loadExtension(dllPath: string) → bool' },
-                { name: 'sendMessage', desc: 'Raw Win32 SendMessage', sig: 'sendMessage(hwnd, msg, wParam, lParam)' },
-                { name: 'findWindow', desc: 'Find window by title', sig: 'findWindow(title: string) → number' },
-                { name: 'getHwnd', desc: 'Get app HWND', sig: 'getHwnd() → number' },
-                { name: 'screenshot', desc: 'Capture window to BMP', sig: 'screenshot(path?, x?, y?, w?, h?) → bool' },
-                { name: 'getPixelColor', desc: 'Get pixel color at coords', sig: 'getPixelColor(x?, y?) → {r, g, b, hex, x, y}' },
-                { name: 'setLogEnabled', desc: 'Toggle logging', sig: 'setLogEnabled(enable: bool)' },
-                { name: 'window', desc: 'Window management APIs', sig: 'sys.window.*' },
-                { name: 'screen', desc: 'Screen information APIs', sig: 'sys.screen.*' },
-                { name: 'keyboard', desc: 'Keyboard hook APIs', sig: 'sys.keyboard.*' },
-                { name: 'clipboard', desc: 'Clipboard APIs', sig: 'sys.clipboard.*' },
-                { name: 'com', desc: 'COM/OLE Automation APIs', sig: 'sys.com.*' },
-            ];
-            for (const m of sysMembers) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.documentation = new vscode.MarkdownString(`**${m.sig}**\n\n${m.desc}`);
-                item.detail = m.sig;
-                items.push(item);
+        // Property access completion (e.g. sys.window., host., shell., e.target.)
+        const propMatch = /(?:([a-zA-Z0-9_\.]+)\.)([a-zA-Z0-9_]*)$/.exec(textBefore);
+        if (propMatch) {
+            const objPrefix = propMatch[1]; // e.g. "sys", "sys.window", "document", "host"
+
+            if (objPrefix === 'sys') {
+                for (const m of sysMembers) {
+                    const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
+                    item.documentation = new vscode.MarkdownString(`**${m.sig}**\n\n${m.desc}`);
+                    item.detail = m.sig;
+                    items.push(item);
+                }
+                return items;
             }
+
+            if (objPrefix === 'Math') {
+                for (const m of mathMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+
+            if (objPrefix === 'JSON') {
+                for (const m of jsonMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+
+            if (objPrefix === 'sys.window') {
+                for (const m of windowMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+
+            if (objPrefix === 'sys.screen') {
+                for (const m of screenMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+            if (objPrefix === 'sys.keyboard') {
+                for (const m of keyboardMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+            if (objPrefix === 'sys.clipboard') {
+                for (const m of clipboardMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+            if (objPrefix === 'sys.com') {
+                for (const m of comMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+            if (objPrefix === 'sys.tray') {
+                for (const m of trayMembers) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+                return items;
+            }
+            if (objPrefix === 'document') {
+                for (const m of ['querySelector', 'querySelectorAll', 'getElementById', 'createElement', 'addEventListener', 'removeEventListener', 'dispatchEvent', 'shadowDomSelector', 'shadowDomSelectorAll']) items.push(new vscode.CompletionItem(m, vscode.CompletionItemKind.Method));
+                return items;
+            }
+            if (objPrefix === 'self') {
+                const methods = extractMethodsFromDocument(document.getText(), document.uri);
+                for (const m of methods) {
+                    const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
+                    let doc = `**${m.name}(${m.args.map(a => a.name).join(', ')})**\n`;
+                    for (const arg of m.args) if (arg.comment) doc += `\n* \`${arg.name}\`: ${arg.comment}`;
+                    item.documentation = new vscode.MarkdownString(doc);
+                    item.detail = `${m.name}(${m.args.map(a => a.name).join(', ')})`;
+                    item.insertText = new vscode.SnippetString(`${m.name}(${m.args.map((a, idx) => `\${${idx + 1}:${a.name}}`).join(', ')})`);
+                    items.push(item);
+                }
+                return items;
+            }
+
+            // Fallback object property completion
+            const typeInfo = inferVariableType(objPrefix, document.getText(), document.uri);
+            const { type, componentPath } = typeInfo;
+
+            // If the element was dynamically traced to an imported component, extract its custom JS API!
+            if (componentPath) {
+                try {
+                    const fs = require('fs');
+                    const compDocText = fs.readFileSync(componentPath, 'utf-8');
+                    const compMethods = extractMethodsFromDocument(compDocText, vscode.Uri.file(componentPath));
+                    for (const m of compMethods) {
+                        const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
+                        let doc = `**${m.name}(${m.args.map(a => a.name).join(', ')})**\n\n*(Exported by <${objPrefix}> component)*`;
+                        for (const arg of m.args) if (arg.comment) doc += `\n* \`${arg.name}\`: ${arg.comment}`;
+                        
+                        item.documentation = new vscode.MarkdownString(doc);
+                        item.detail = `${m.name}(${m.args.map(a => a.name).join(', ')})`;
+                        item.insertText = new vscode.SnippetString(`${m.name}(${m.args.map((a, idx) => `\${${idx + 1}:${a.name}}`).join(', ')})`);
+                        item.sortText = '0000_' + m.name; // Force to the top of standard DOM functions!
+                        items.push(item);
+                    }
+                } catch (e) {
+                    // Ignore fs errors silently
+                }
+            }
+
+            if (type === 'Element' || (type === 'Unknown' && !objPrefix.includes('sys'))) {
+                for (const m of elementInstanceMethods) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+            }
+
+            if (type === 'COM' || (type === 'Unknown' && !objPrefix.includes('sys'))) {
+                for (const m of comInstanceMethods) items.push(new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method));
+            }
+
             return items;
-        }
-
-        // sys.window.* completions
-        if (textBefore.endsWith('sys.window.')) {
-            const windowMembers = [
-                { name: 'resize', sig: 'resize(w, h)' },
-                { name: 'move', sig: 'move(x, y)' },
-                { name: 'center', sig: 'center()' },
-                { name: 'hide', sig: 'hide()' },
-                { name: 'show', sig: 'show()' },
-                { name: 'minimize', sig: 'minimize()' },
-                { name: 'maximize', sig: 'maximize()' },
-                { name: 'restore', sig: 'restore()' },
-                { name: 'close', sig: 'close()' },
-                { name: 'setFullscreen', sig: 'setFullscreen(enable: bool)' },
-                { name: 'isMaximized', sig: 'isMaximized() → bool' },
-                { name: 'setTitle', sig: 'setTitle(title: string)' },
-                { name: 'setOpacity', sig: 'setOpacity(alpha: 0.0-1.0)' },
-                { name: 'setAlwaysOnTop', sig: 'setAlwaysOnTop(enable: bool)' },
-                { name: 'setIcon', sig: 'setIcon(filepath: string)' },
-                { name: 'getSize', sig: 'getSize() → {width, height}' },
-                { name: 'getPosition', sig: 'getPosition() → {x, y}' },
-                { name: 'getActiveProcessName', sig: 'getActiveProcessName() → string' },
-                { name: 'registerHotkey', sig: 'registerHotkey(id, keyStr)' },
-                { name: 'unregisterHotkey', sig: 'unregisterHotkey(id)' },
-            ];
-            for (const m of windowMembers) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.detail = m.sig;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // sys.screen.* completions
-        if (textBefore.endsWith('sys.screen.')) {
-            for (const m of [
-                { name: 'getInfo', sig: 'getInfo() → {width, height, monitors, workArea}' },
-                { name: 'getDPI', sig: 'getDPI() → number' },
-                { name: 'getMousePosition', sig: 'getMousePosition() → {x, y}' },
-                { name: 'getMonitorAt', sig: 'getMonitorAt(x, y) → {name, x, y, width, height, isPrimary}' },
-            ]) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.detail = m.sig;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // sys.keyboard.* completions
-        if (textBefore.endsWith('sys.keyboard.')) {
-            for (const m of [
-                { name: 'hook', sig: 'hook(callback: Function)' },
-                { name: 'unhook', sig: 'unhook()' },
-            ]) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.detail = m.sig;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // sys.clipboard.* completions
-        if (textBefore.endsWith('sys.clipboard.')) {
-            for (const m of [
-                { name: 'getText', sig: 'getText() → string' },
-                { name: 'setText', sig: 'setText(payload: string)' },
-                { name: 'clear', sig: 'clear()' },
-                { name: 'getFormat', sig: 'getFormat(id) → number[]' },
-                { name: 'setFormat', sig: 'setFormat(id, buffer)' },
-            ]) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.detail = m.sig;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // sys.com.* completions
-        if (textBefore.endsWith('sys.com.')) {
-            for (const m of [
-                { name: 'create', sig: 'create(progId) → object' },
-                { name: 'getActive', sig: 'getActive(progId) → object' },
-                { name: 'releaseAll', sig: 'releaseAll()' },
-            ]) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.detail = m.sig;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // document.* completions
-        if (textBefore.endsWith('document.')) {
-            for (const m of [
-                { name: 'querySelector', sig: 'querySelector(selector) → Element?' },
-                { name: 'querySelectorAll', sig: 'querySelectorAll(selector) → Element[]' },
-                { name: 'getElementById', sig: 'getElementById(id) → Element?' },
-                { name: 'createElement', sig: 'createElement(tag) → Element' },
-                { name: 'addEventListener', sig: 'addEventListener(type, callback)' },
-                { name: 'removeEventListener', sig: 'removeEventListener(type)' },
-                { name: 'dispatchEvent', sig: 'dispatchEvent(event)' },
-                { name: 'shadowDomSelector', sig: 'shadowDomSelector(selector) → Element?' },
-                { name: 'shadowDomSelectorAll', sig: 'shadowDomSelectorAll(selector) → Element[]' },
-            ]) {
-                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Method);
-                item.detail = m.sig;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // addEventListener event types
-        const eventMatch = /addEventListener\(\s*["']$/.exec(textBefore);
-        if (eventMatch) {
-            for (const evt of EVENT_TYPES) {
-                const item = new vscode.CompletionItem(evt, vscode.CompletionItemKind.Event);
-                items.push(item);
-            }
-            return items;
-        }
-
-        // Element method completions after .
-        if (textBefore.endsWith('.')) {
-            const elementMethods = [
-                'querySelector', 'querySelectorAll', 'shadowDomSelector', 'shadowDomSelectorAll',
-                'getAttribute', 'setAttribute', 'classList', 'appendChild',
-                'getBoundingRect', 'addEventListener', 'removeEventListener', 'dispatchEvent',
-                'show', 'hide', 'focus', 'blur', 'parentElement', 'children',
-                'textContent', 'innerText',
-            ];
-            for (const m of elementMethods) {
-                const item = new vscode.CompletionItem(m, vscode.CompletionItemKind.Method);
-                items.push(item);
-            }
         }
 
         // General JS keywords and builtins
@@ -524,16 +474,32 @@ export class DomCompletionProvider implements vscode.CompletionItemProvider {
             'fetch', 'JSON', 'Math', 'Object', 'Array', 'String', 'Number',
             'parseInt', 'parseFloat', 'isNaN', 'isFinite',
             'Promise', 'CustomEvent',
-            'sys', 'document', 'console', 'window',
+            'sys', 'document', 'console', 'window', 'self',
         ];
-        if (!textBefore.endsWith('.')) {
+
+        // Also inject ANY function defined in the active document via inline scrape
+        const methods = extractMethodsFromDocument(document.getText(), document.uri);
+            for (const m of methods) {
+                const item = new vscode.CompletionItem(m.name, vscode.CompletionItemKind.Function);
+                let doc = `**${m.name}(${m.args.map(a => a.name).join(', ')})**\n`;
+                for (const arg of m.args) {
+                    if (arg.comment) doc += `\n* \`${arg.name}\`: ${arg.comment}`;
+                }
+                item.documentation = new vscode.MarkdownString(doc);
+                item.detail = `${m.name}(${m.args.map(a => a.name).join(', ')}) [Local Function]`;
+                item.insertText = new vscode.SnippetString(`${m.name}(${m.args.map((a, idx) => `\${${idx + 1}:${a.name}}`).join(', ')})`);
+                items.push(item);
+            }
+        
             for (const kw of jsKeywords) {
                 const item = new vscode.CompletionItem(kw, vscode.CompletionItemKind.Keyword);
                 items.push(item);
             }
-        }
 
         return items;
+        } catch (e) {
+            return [new vscode.CompletionItem('Error: ' + String(e), vscode.CompletionItemKind.Issue)];
+        }
     }
 
     private getImportedComponents(fullText: string): string[] {

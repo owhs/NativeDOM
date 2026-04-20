@@ -38,7 +38,7 @@
     "increaseIndentPattern": "^\\s*<(?:ui|View|div|Text|Button|TextInput|Image|style|script|component)[^/>]*>\\s*$|^.*\\{[^}]*$",
     "decreaseIndentPattern": "^\\s*</|^\\s*\\}"
   },
-  "wordPattern": "[\\w\\-#\\.]+",
+  "wordPattern": "[\\w\\-#]+",
   "onEnterRules": [
     {
       "beforeText": "<(?:ui|View|div|style|script|component)[^/>]*>",
