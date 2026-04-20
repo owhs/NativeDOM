@@ -601,6 +601,34 @@ public:
             return rect;
         }));
 
+        // Scroll properties
+        wrapper->setProperty("getScrollTop", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            return Value::Num((double)sharedEl->scrollY);
+        }));
+        wrapper->setProperty("getScrollLeft", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            return Value::Num((double)sharedEl->scrollX);
+        }));
+        wrapper->setProperty("getScrollHeight", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            return Value::Num((double)sharedEl->contentH);
+        }));
+        wrapper->setProperty("getScrollWidth", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            return Value::Num((double)sharedEl->contentW);
+        }));
+        wrapper->setProperty("getClientHeight", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            return Value::Num((double)sharedEl->h);
+        }));
+        wrapper->setProperty("getClientWidth", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
+            return Value::Num((double)sharedEl->w);
+        }));
+        wrapper->setProperty("setScrollTop", Value::Native([sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (!args.empty()) { sharedEl->scrollY = (float)args[0]->toNumber(); if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE); }
+            return Value::Undefined();
+        }));
+        wrapper->setProperty("setScrollLeft", Value::Native([sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (!args.empty()) { sharedEl->scrollX = (float)args[0]->toNumber(); if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE); }
+            return Value::Undefined();
+        }));
+
         // Visibility
         wrapper->setProperty("show", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
             sharedEl->visible = true;

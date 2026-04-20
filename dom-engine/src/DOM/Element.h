@@ -74,6 +74,12 @@ public:
     int x = 0, y = 0, w = 100, h = 30;
     bool visible = true;
 
+    // Scroll state (native overflow scrolling)
+    float scrollX = 0, scrollY = 0;
+    float contentW = 0, contentH = 0; // calculated content bounds
+    float measuredContentH = 0; // actual rendered text height (updated each Draw)
+    bool isScrollbarHovered = false; // true when mouse is over the scrollbar track
+
     // Interactive states
     bool isHovered = false;
     bool isFocused = false;
@@ -847,12 +853,15 @@ public:
             
             std::string whiteSpace = Get("white-space", "normal");
             if (whiteSpace == "normal") {
-                // Restore tx for box since align offsets it
                 float boxX = (float)(x + padL);
-                // Also vertical align needs to be accounted. nvgTextBox top-aligns by default? Actually it respects nvgTextAlign vertical metrics.
                 nvgTextBox(vg, boxX, ty, mw, display.c_str(), NULL);
+                // Measure actual rendered height for scroll containers
+                float bounds[4];
+                nvgTextBoxBounds(vg, boxX, ty, mw, display.c_str(), NULL, bounds);
+                measuredContentH = (bounds[3] - bounds[1]) + (float)padT + (float)padB;
             } else {
                 nvgText(vg, tx, ty, display.c_str(), NULL);
+                measuredContentH = (float)fontSize + (float)padT + (float)padB;
             }
         }
 
@@ -864,18 +873,130 @@ public:
             return sorted;
         };
 
-        for (auto& c : sortChildren(shadowChildren)) c->Draw(vg);
-        for (auto& c : sortChildren(children)) c->Draw(vg);
+        // ---- Scroll-aware children rendering ----
+        std::string curOverflow = Get("overflow", "visible");
+        std::string ovX = Get("overflow-x", curOverflow);
+        std::string ovY = Get("overflow-y", curOverflow);
+        bool scrollX_enabled = (ovX == "scroll" || ovX == "auto");
+        bool scrollY_enabled = (ovY == "scroll" || ovY == "auto");
+        bool isScrollable = scrollX_enabled || scrollY_enabled;
+
+        if (isScrollable) {
+            // Calculate content bounds from children
+            contentW = 0; contentH = 0;
+            auto calcBounds = [&](const std::vector<std::shared_ptr<Element>>& list) {
+                for (auto& c : list) {
+                    if (!c->visible || c->GetRaw("display") == "none") continue;
+                    float relR = (float)(c->x - x + c->w);
+                    // Use measuredContentH if available (auto-sized text)
+                    float childH = c->measuredContentH > (float)c->h ? c->measuredContentH : (float)c->h;
+                    float relB = (float)(c->y - y) + childH;
+                    if (relR > contentW) contentW = relR;
+                    if (relB > contentH) contentH = relB;
+                }
+            };
+            calcBounds(shadowChildren);
+            calcBounds(children);
+            // Compute clamped scroll for rendering (don't modify stored scroll yet)
+            float maxSX = scrollX_enabled ? (contentW - (float)w) : 0; if (maxSX < 0) maxSX = 0;
+            float maxSY = scrollY_enabled ? (contentH - (float)h) : 0; if (maxSY < 0) maxSY = 0;
+            float renderSX = scrollX_enabled ? (scrollX < 0 ? 0 : (scrollX > maxSX ? maxSX : scrollX)) : 0;
+            float renderSY = scrollY_enabled ? (scrollY < 0 ? 0 : (scrollY > maxSY ? maxSY : scrollY)) : 0;
+
+            // Draw children with scroll offset
+            nvgSave(vg);
+            nvgIntersectScissor(vg, (float)x, (float)y, (float)w, (float)h);
+            nvgTranslate(vg, -renderSX, -renderSY);
+            for (auto& c : sortChildren(shadowChildren)) c->Draw(vg);
+            for (auto& c : sortChildren(children)) c->Draw(vg);
+            nvgRestore(vg);
+
+            // NOW update stored scroll from freshly measured children
+            contentW = 0; contentH = 0;
+            for (auto& c : children) {
+                if (!c->visible || c->GetRaw("display") == "none") continue;
+                float cH = c->measuredContentH > (float)c->h ? c->measuredContentH : (float)c->h;
+                float relR = (float)(c->x - x + c->w);
+                float relB = (float)(c->y - y) + cH;
+                if (relR > contentW) contentW = relR;
+                if (relB > contentH) contentH = relB;
+            }
+            for (auto& c : shadowChildren) {
+                if (!c->visible || c->GetRaw("display") == "none") continue;
+                float cH = c->measuredContentH > (float)c->h ? c->measuredContentH : (float)c->h;
+                float relR = (float)(c->x - x + c->w);
+                float relB = (float)(c->y - y) + cH;
+                if (relR > contentW) contentW = relR;
+                if (relB > contentH) contentH = relB;
+            }
+            // Clamp stored scroll for the next event/frame
+            maxSX = scrollX_enabled ? (contentW - (float)w) : 0; if (maxSX < 0) maxSX = 0;
+            maxSY = scrollY_enabled ? (contentH - (float)h) : 0; if (maxSY < 0) maxSY = 0;
+            if (!scrollX_enabled) scrollX = 0;
+            else { if (scrollX < 0) scrollX = 0; if (scrollX > maxSX) scrollX = maxSX; }
+            if (!scrollY_enabled) scrollY = 0;
+            else { if (scrollY < 0) scrollY = 0; if (scrollY > maxSY) scrollY = maxSY; }
+
+            // ---- Draw scrollbar indicators (CSS-configurable) ----
+            float sbW = (float)GetInt("scrollbar-width", 8);
+            float sbRad = (float)GetInt("scrollbar-radius", 4);
+            float sbPad = 2.0f;
+            NVGcolor trackCol = ParseColor(Get("scrollbar-track-color", "#FFFFFF0A"));
+            NVGcolor thumbCol = ParseColor(Get("scrollbar-thumb-color", "#FFFFFF33"));
+            NVGcolor thumbHoverCol = ParseColor(Get("scrollbar-thumb-hover-color", "#FFFFFF66"));
+            NVGcolor activeThumb = isScrollbarHovered ? thumbHoverCol : thumbCol;
+
+            if (scrollY_enabled && contentH > (float)h) {
+                float trackX_sb = (float)(x + w) - sbW - sbPad;
+                float trackY_sb = (float)y + sbPad;
+                float trackH_sb = (float)h - sbPad * 2;
+                float ratio = (float)h / contentH;
+                float thumbH = trackH_sb * ratio;
+                if (thumbH < 24.0f) thumbH = 24.0f;
+                if (thumbH > trackH_sb) thumbH = trackH_sb;
+                float thumbY = trackY_sb + (trackH_sb - thumbH) * (maxSY > 0 ? scrollY / maxSY : 0);
+
+                nvgBeginPath(vg);
+                nvgRoundedRect(vg, trackX_sb, trackY_sb, sbW, trackH_sb, sbRad);
+                nvgFillColor(vg, trackCol);
+                nvgFill(vg);
+                nvgBeginPath(vg);
+                nvgRoundedRect(vg, trackX_sb, thumbY, sbW, thumbH, sbRad);
+                nvgFillColor(vg, activeThumb);
+                nvgFill(vg);
+            }
+            if (scrollX_enabled && contentW > (float)w) {
+                float trackX2 = (float)x + sbPad;
+                float trackY2 = (float)(y + h) - sbW - sbPad;
+                float trackW2 = (float)w - sbPad * 2;
+                float ratioH = (float)w / contentW;
+                float thumbW2 = trackW2 * ratioH;
+                if (thumbW2 < 24.0f) thumbW2 = 24.0f;
+                if (thumbW2 > trackW2) thumbW2 = trackW2;
+                float thumbX2 = trackX2 + (trackW2 - thumbW2) * (maxSX > 0 ? scrollX / maxSX : 0);
+
+                nvgBeginPath(vg);
+                nvgRoundedRect(vg, trackX2, trackY2, trackW2, sbW, sbRad);
+                nvgFillColor(vg, trackCol);
+                nvgFill(vg);
+                nvgBeginPath(vg);
+                nvgRoundedRect(vg, thumbX2, trackY2, thumbW2, sbW, sbRad);
+                nvgFillColor(vg, activeThumb);
+                nvgFill(vg);
+            }
+        } else {
+            for (auto& c : sortChildren(shadowChildren)) c->Draw(vg);
+            for (auto& c : sortChildren(children)) c->Draw(vg);
+        }
 
         NVGcolor borderCol = ParseColor(Get("border"));
         if (borderCol.a > 0.0f) {
             int bw = GetInt("border-width", 1);
             nvgBeginPath(vg);
-            if (radius > 0) nvgRoundedRect(vg, x, y, w, h, radius);
-            else nvgRect(vg, x, y, w, h);
+            if (radius > 0) nvgRoundedRect(vg, (float)x, (float)y, (float)w, (float)h, (float)radius);
+            else nvgRect(vg, (float)x, (float)y, (float)w, (float)h);
             nvgStrokeColor(vg, borderCol);
             nvgStrokeWidth(vg, (float)bw);
-            // Inset borders aren't native in NanoVG, but standard stroking is halfway inset
             nvgStroke(vg);
         }
         
@@ -888,6 +1009,24 @@ public:
 
         bool inBounds = (mx >= x && mx <= x + w && my >= y && my <= y + h);
 
+        // For scrollable containers, adjust coords for children and restrict to bounds
+        std::string ov = Get("overflow", "visible");
+        std::string ovXht = Get("overflow-x", ov);
+        std::string ovYht = Get("overflow-y", ov);
+        bool htScrollX = (ovXht == "scroll" || ovXht == "auto");
+        bool htScrollY = (ovYht == "scroll" || ovYht == "auto");
+        bool isScrollable = htScrollX || htScrollY;
+        int cmx = mx, cmy = my;
+        if (isScrollable) {
+            if (!inBounds) {
+                // Can't click children outside a scrollable container
+                // But still check if we hit the container itself below
+            } else {
+                cmx = mx + (int)scrollX;
+                cmy = my + (int)scrollY;
+            }
+        }
+
         auto sortChildren = [](const std::vector<std::shared_ptr<Element>>& list) {
             std::vector<std::shared_ptr<Element>> sorted = list;
             std::stable_sort(sorted.begin(), sorted.end(), [](const std::shared_ptr<Element>& a, const std::shared_ptr<Element>& b) {
@@ -896,14 +1035,16 @@ public:
             return sorted;
         };
 
-        auto sortedChildren = sortChildren(children);
-        for (auto it = sortedChildren.rbegin(); it != sortedChildren.rend(); ++it) {
-            if ((*it)->HitTestRay(mx, my, hits)) return true;
-        }
+        if (!isScrollable || inBounds) {
+            auto sortedChildren = sortChildren(children);
+            for (auto it = sortedChildren.rbegin(); it != sortedChildren.rend(); ++it) {
+                if ((*it)->HitTestRay(cmx, cmy, hits)) return true;
+            }
 
-        auto sortedShadow = sortChildren(shadowChildren);
-        for (auto it = sortedShadow.rbegin(); it != sortedShadow.rend(); ++it) {
-            if ((*it)->HitTestRay(mx, my, hits)) return true;
+            auto sortedShadow = sortChildren(shadowChildren);
+            for (auto it = sortedShadow.rbegin(); it != sortedShadow.rend(); ++it) {
+                if ((*it)->HitTestRay(cmx, cmy, hits)) return true;
+            }
         }
 
         if (inBounds) {
@@ -917,7 +1058,7 @@ public:
                 return true;
             } else {
                 hits.push_back(this);
-                return true; // Default "catch" / "catchAndStop"
+                return true;
             }
         }
         return false;

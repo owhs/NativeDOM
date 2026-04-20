@@ -15,7 +15,7 @@
         height: 18;
         width: 0;
         x: 0;
-        y: 10;
+        y: 9;
         pointer-events: none;
         border-radius: 2;
     }
@@ -26,7 +26,7 @@
         x: 12;
         bg: #00000000;
         font-size: 14;
-        padding-top: 10;
+        padding-top: 9;
         pointer-events: none;
         white-space: nowrap;
     }
@@ -35,7 +35,7 @@
         width: 1;
         height: 18;
         x: 12;
-        y: 10;
+        y: 9;
         pointer-events: none;
     }
     .ti-ph {
@@ -45,7 +45,7 @@
         x: 12;
         bg: #00000000;
         font-size: 14;
-        padding-top: 10;
+        padding-top: 9;
         pointer-events: none;
         white-space: nowrap;
     }

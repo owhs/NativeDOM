@@ -213,6 +213,15 @@ std::shared_ptr<Element> appRoot;
 Element* focusedElement = nullptr;
 Element* hoveredElement = nullptr;
 Element* activeElement = nullptr;
+Element* hoveredScrollbarElement = nullptr;
+
+// Scrollbar drag state
+Element* scrollDragElement = nullptr;  // which element's scrollbar we're dragging
+bool scrollDragIsVertical = true;      // true=Y, false=X
+float scrollDragOffset = 0;            // mouse offset from thumb top/left
+float scrollDragTrackStart = 0;        // track start position
+float scrollDragTrackSize = 0;         // track usable size
+float scrollDragThumbSize = 0;         // thumb size
 
 Interpreter* g_interp = nullptr;
 ScriptBridge* g_bridge = nullptr;
@@ -352,6 +361,83 @@ static void onInvalidate() {
 }
 
 #define InvalidateRect(hwnd, lpRect, bErase) RequestRedraw(hwnd)
+
+// Helper: find a scrollbar thumb under the mouse in any scrollable ancestor
+struct ScrollbarHit {
+    Element* element = nullptr;
+    bool isVertical = true;
+    float thumbPos = 0, thumbSize = 0;
+    float trackStart = 0, trackSize = 0;
+    float maxScroll = 0;
+};
+
+ScrollbarHit findScrollbarAt(int mx, int my) {
+    ScrollbarHit result;
+    if (!appRoot) return result;
+    auto hits = appRoot->HitTestAll(mx, my);
+    // Walk up from each hit to find scrollable ancestor
+    for (Element* h : hits) {
+        Element* cur = h;
+        while (cur) {
+            std::string ov = cur->Get("overflow", "visible");
+            std::string ovY = cur->Get("overflow-y", ov);
+            std::string ovX = cur->Get("overflow-x", ov);
+            float sbW = (float)cur->GetInt("scrollbar-width", 8);
+            float sbPad = 2.0f;
+
+            // Vertical scrollbar hit-test
+            if ((ovY == "scroll" || ovY == "auto") && cur->contentH > (float)cur->h) {
+                float trackX = (float)(cur->x + cur->w) - sbW - sbPad;
+                float trackY = (float)cur->y + sbPad;
+                float trackH = (float)cur->h - sbPad * 2;
+                float ratio = (float)cur->h / cur->contentH;
+                float thumbH = trackH * ratio;
+                if (thumbH < 24.0f) thumbH = 24.0f;
+                if (thumbH > trackH) thumbH = trackH;
+                float maxSY = cur->contentH - (float)cur->h;
+                float thumbY = trackY + (trackH - thumbH) * (maxSY > 0 ? cur->scrollY / maxSY : 0);
+
+                if ((float)mx >= trackX && (float)mx <= trackX + sbW &&
+                    (float)my >= (float)cur->y && (float)my <= (float)(cur->y + cur->h)) {
+                    result.element = cur;
+                    result.isVertical = true;
+                    result.thumbPos = thumbY;
+                    result.thumbSize = thumbH;
+                    result.trackStart = trackY;
+                    result.trackSize = trackH;
+                    result.maxScroll = maxSY;
+                    return result;
+                }
+            }
+            // Horizontal scrollbar hit-test
+            if ((ovX == "scroll" || ovX == "auto") && cur->contentW > (float)cur->w) {
+                float trackX = (float)cur->x + sbPad;
+                float trackY = (float)(cur->y + cur->h) - sbW - sbPad;
+                float trackW = (float)cur->w - sbPad * 2;
+                float ratio = (float)cur->w / cur->contentW;
+                float thumbW = trackW * ratio;
+                if (thumbW < 24.0f) thumbW = 24.0f;
+                if (thumbW > trackW) thumbW = trackW;
+                float maxSX = cur->contentW - (float)cur->w;
+                float thumbX = trackX + (trackW - thumbW) * (maxSX > 0 ? cur->scrollX / maxSX : 0);
+
+                if ((float)mx >= (float)cur->x && (float)mx <= (float)(cur->x + cur->w) &&
+                    (float)my >= trackY && (float)my <= trackY + sbW) {
+                    result.element = cur;
+                    result.isVertical = false;
+                    result.thumbPos = thumbX;
+                    result.thumbSize = thumbW;
+                    result.trackStart = trackX;
+                    result.trackSize = trackW;
+                    result.maxScroll = maxSX;
+                    return result;
+                }
+            }
+            cur = cur->parent ? cur->parent : cur->shadowHost;
+        }
+    }
+    return result;
+}
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_APP_ASYNC_DONE) {
@@ -572,9 +658,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int mx = GET_X_LPARAM(lp);
             int my = GET_Y_LPARAM(lp);
 
+            // Handle scrollbar drag
+            if (scrollDragElement) {
+                float mousePos = scrollDragIsVertical ? (float)my : (float)mx;
+                float thumbTop = mousePos - scrollDragOffset;
+                float scrollRange = scrollDragTrackSize - scrollDragThumbSize;
+                if (scrollRange > 0) {
+                    float ratio = (thumbTop - scrollDragTrackStart) / scrollRange;
+                    if (ratio < 0) ratio = 0; if (ratio > 1) ratio = 1;
+                    if (scrollDragIsVertical)
+                        scrollDragElement->scrollY = ratio * scrollDragElement->contentH;
+                    else
+                        scrollDragElement->scrollX = ratio * scrollDragElement->contentW;
+                }
+                RequestRedraw(hwnd);
+                return 0;
+            }
+
             // Track mouse for WM_MOUSELEAVE
             TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hwnd, 0 };
             TrackMouseEvent(&tme);
+
+            ScrollbarHit sbHit = findScrollbarAt(mx, my);
+            if (sbHit.element != hoveredScrollbarElement) {
+                if (hoveredScrollbarElement) hoveredScrollbarElement->isScrollbarHovered = false;
+                hoveredScrollbarElement = sbHit.element;
+                if (hoveredScrollbarElement) hoveredScrollbarElement->isScrollbarHovered = true;
+                RequestRedraw(hwnd);
+            }
 
             auto hits = appRoot->HitTestAll(mx, my);
             Element* hit = hits.empty() ? nullptr : hits.front();
@@ -602,13 +713,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
             // Cursor
             std::string cursorMode = "arrow";
-            Element* curr = hit;
-            while (curr) {
-                std::string c = curr->Get("cursor");
-                if (c == "pointer" || !curr->Get("onClick").empty()) { cursorMode = "pointer"; break; }
-                if (c == "text") { cursorMode = "text"; break; }
-                if (c == "move") { cursorMode = "move"; break; }
-                curr = curr->parent ? curr->parent : curr->shadowHost;
+            if (!hoveredScrollbarElement && !scrollDragElement) {
+                Element* curr = hit;
+                while (curr) {
+                    std::string c = curr->Get("cursor");
+                    if (c == "pointer" || !curr->Get("onClick").empty()) { cursorMode = "pointer"; break; }
+                    if (c == "text") { cursorMode = "text"; break; }
+                    if (c == "move") { cursorMode = "move"; break; }
+                    curr = curr->parent ? curr->parent : curr->shadowHost;
+                }
             }
             if (cursorMode == "pointer") SetCursor(LoadCursor(NULL, IDC_HAND));
             else if (cursorMode == "text") SetCursor(LoadCursor(NULL, IDC_IBEAM));
@@ -618,19 +731,58 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
 
         case WM_MOUSELEAVE: {
+            bool requiresRedraw = false;
+            if (hoveredScrollbarElement) {
+                hoveredScrollbarElement->isScrollbarHovered = false;
+                hoveredScrollbarElement = nullptr;
+                requiresRedraw = true;
+            }
             if (hoveredElement) {
                 Element* c = hoveredElement;
                 while (c) { c->isHovered = false; c = c->parent ? c->parent : c->shadowHost; }
                 if (g_bridge) g_bridge->dispatchMouseEvent(hoveredElement, "mouseleave", 0, 0);
                 hoveredElement = nullptr;
-                RequestRedraw(hwnd);
+                requiresRedraw = true;
             }
+            if (requiresRedraw) RequestRedraw(hwnd);
             return 0;
         }
 
         case WM_LBUTTONDOWN: {
             int mx = GET_X_LPARAM(lp);
             int my = GET_Y_LPARAM(lp);
+
+            // Check if clicking on a scrollbar first
+            ScrollbarHit sbHit = findScrollbarAt(mx, my);
+            if (sbHit.element) {
+                SetCapture(hwnd);
+                scrollDragElement = sbHit.element;
+                scrollDragIsVertical = sbHit.isVertical;
+                scrollDragTrackStart = sbHit.trackStart;
+                scrollDragTrackSize = sbHit.trackSize;
+                scrollDragThumbSize = sbHit.thumbSize;
+
+                float mousePos = sbHit.isVertical ? (float)my : (float)mx;
+                // If clicking on thumb, record offset; if on track, jump to position
+                if (mousePos >= sbHit.thumbPos && mousePos <= sbHit.thumbPos + sbHit.thumbSize) {
+                    scrollDragOffset = mousePos - sbHit.thumbPos;
+                } else {
+                    // Jump: center thumb at click position
+                    scrollDragOffset = sbHit.thumbSize * 0.5f;
+                    float thumbTop = mousePos - scrollDragOffset;
+                    float scrollRange = sbHit.trackSize - sbHit.thumbSize;
+                    if (scrollRange > 0) {
+                        float ratio = (thumbTop - sbHit.trackStart) / scrollRange;
+                        if (ratio < 0) ratio = 0; if (ratio > 1) ratio = 1;
+                        if (sbHit.isVertical)
+                            sbHit.element->scrollY = ratio * sbHit.maxScroll;
+                        else
+                            sbHit.element->scrollX = ratio * sbHit.maxScroll;
+                    }
+                }
+                RequestRedraw(hwnd);
+                return 0;
+            }
 
             // Clear old focus
             if (focusedElement) {
@@ -687,6 +839,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_LBUTTONUP: {
             int mx = GET_X_LPARAM(lp);
             int my = GET_Y_LPARAM(lp);
+
+            // End scrollbar drag
+            if (scrollDragElement) {
+                ReleaseCapture();
+                scrollDragElement = nullptr;
+                RequestRedraw(hwnd);
+                return 0;
+            }
+
             auto hits = appRoot->HitTestAll(mx, my);
             Element* hit = hits.empty() ? nullptr : hits.front();
 
@@ -725,15 +886,86 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_MOUSEWHEEL: {
             POINT pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
             ScreenToClient(hwnd, &pt);
+            int delta = GET_WHEEL_DELTA_WPARAM(wp);
+            float scrollAmount = -(float)delta / (float)WHEEL_DELTA * 48.0f;
+
+            // Find scrollable ancestor and apply native scroll
             auto hits = appRoot->HitTestAll(pt.x, pt.y);
+            bool scrolled = false;
+            for (Element* h : hits) {
+                Element* cur = h;
+                while (cur) {
+                    std::string ov = cur->Get("overflow", "visible");
+                    std::string ovY = cur->Get("overflow-y", ov);
+                    if (ovY == "scroll" || ovY == "auto") {
+                        float maxSY = cur->contentH - (float)cur->h;
+                        if (maxSY > 0) {
+                            cur->scrollY += scrollAmount;
+                            if (cur->scrollY < 0) cur->scrollY = 0;
+                            if (cur->scrollY > maxSY) cur->scrollY = maxSY;
+                            scrolled = true;
+                            break;
+                        }
+                    }
+                    cur = cur->parent ? cur->parent : cur->shadowHost;
+                }
+                if (scrolled) break;
+            }
+
+            // Also dispatch JS "wheel" event
             if (g_bridge) {
                 auto eventObj = Value::Object();
                 eventObj->setProperty("type", Value::Str("wheel"));
                 eventObj->setProperty("clientX", Value::Num((double)pt.x));
                 eventObj->setProperty("clientY", Value::Num((double)pt.y));
-                eventObj->setProperty("deltaY", Value::Num((double)-GET_WHEEL_DELTA_WPARAM(wp) / WHEEL_DELTA * 100));
+                eventObj->setProperty("deltaY", Value::Num((double)scrollAmount));
+                eventObj->setProperty("deltaX", Value::Num(0.0));
                 for (Element* h : hits) g_bridge->dispatchScriptEvent(h, "wheel", eventObj);
             }
+
+            InvalidateRect(hwnd, NULL, FALSE);
+            return 0;
+        }
+
+        case WM_MOUSEHWHEEL: {
+            POINT pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+            ScreenToClient(hwnd, &pt);
+            int delta = GET_WHEEL_DELTA_WPARAM(wp);
+            float scrollAmount = (float)delta / (float)WHEEL_DELTA * 48.0f;
+
+            auto hits = appRoot->HitTestAll(pt.x, pt.y);
+            bool scrolled = false;
+            for (Element* h : hits) {
+                Element* cur = h;
+                while (cur) {
+                    std::string ov = cur->Get("overflow", "visible");
+                    std::string ovX = cur->Get("overflow-x", ov);
+                    if (ovX == "scroll" || ovX == "auto") {
+                        float maxSX = cur->contentW - (float)cur->w;
+                        if (maxSX > 0) {
+                            cur->scrollX += scrollAmount;
+                            if (cur->scrollX < 0) cur->scrollX = 0;
+                            if (cur->scrollX > maxSX) cur->scrollX = maxSX;
+                            scrolled = true;
+                            break;
+                        }
+                    }
+                    cur = cur->parent ? cur->parent : cur->shadowHost;
+                }
+                if (scrolled) break;
+            }
+
+            if (g_bridge) {
+                auto eventObj = Value::Object();
+                eventObj->setProperty("type", Value::Str("wheel"));
+                eventObj->setProperty("clientX", Value::Num((double)pt.x));
+                eventObj->setProperty("clientY", Value::Num((double)pt.y));
+                eventObj->setProperty("deltaX", Value::Num((double)scrollAmount));
+                eventObj->setProperty("deltaY", Value::Num(0.0));
+                for (Element* h : hits) g_bridge->dispatchScriptEvent(h, "wheel", eventObj);
+            }
+
+            InvalidateRect(hwnd, NULL, FALSE);
             return 0;
         }
 
@@ -758,6 +990,54 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (focusedElement && g_bridge) {
                 g_bridge->dispatchKeyEvent(focusedElement, "keydown", (int)wp, "");
             }
+
+            // Keyboard scrolling for focused area
+            if (focusedElement) {
+                if (wp == VK_PRIOR || wp == VK_NEXT || wp == VK_UP || wp == VK_DOWN || wp == VK_HOME || wp == VK_END || wp == VK_LEFT || wp == VK_RIGHT) {
+                    Element* cur = focusedElement;
+                    bool scrolled = false;
+                    while (cur) {
+                        std::string ov = cur->Get("overflow", "visible");
+                        std::string ovY = cur->Get("overflow-y", ov);
+                        std::string ovX = cur->Get("overflow-x", ov);
+                        bool canScrollY = (ovY == "scroll" || ovY == "auto") && cur->contentH > (float)cur->h;
+                        bool canScrollX = (ovX == "scroll" || ovX == "auto") && cur->contentW > (float)cur->w;
+
+                        if (canScrollY || canScrollX) {
+                            if (canScrollY && (wp == VK_PRIOR || wp == VK_NEXT || wp == VK_UP || wp == VK_DOWN || wp == VK_HOME || wp == VK_END)) {
+                                float maxSY = cur->contentH - (float)cur->h;
+                                float oldScrollY = cur->scrollY;
+                                if (wp == VK_PRIOR) cur->scrollY -= cur->h * 0.25f;
+                                else if (wp == VK_NEXT) cur->scrollY += cur->h * 0.25f;
+                                else if (wp == VK_UP) cur->scrollY -= 48.0f;
+                                else if (wp == VK_DOWN) cur->scrollY += 48.0f;
+                                else if (wp == VK_HOME) cur->scrollY = 0;
+                                else if (wp == VK_END) cur->scrollY = maxSY;
+                                
+                                if (cur->scrollY < 0) cur->scrollY = 0;
+                                if (cur->scrollY > maxSY) cur->scrollY = maxSY;
+                                if (cur->scrollY != oldScrollY) scrolled = true;
+                            }
+                            if (canScrollX && (wp == VK_LEFT || wp == VK_RIGHT)) {
+                                float maxSX = cur->contentW - (float)cur->w;
+                                float oldScrollX = cur->scrollX;
+                                if (wp == VK_LEFT) cur->scrollX -= 48.0f;
+                                else if (wp == VK_RIGHT) cur->scrollX += 48.0f;
+                                
+                                if (cur->scrollX < 0) cur->scrollX = 0;
+                                if (cur->scrollX > maxSX) cur->scrollX = maxSX;
+                                if (cur->scrollX != oldScrollX) scrolled = true;
+                            }
+                            if (scrolled) {
+                                RequestRedraw(hwnd);
+                                break;
+                            }
+                        }
+                        cur = cur->parent ? cur->parent : cur->shadowHost;
+                    }
+                }
+            }
+
             // Tab handling
             if (wp == VK_TAB) {
                 // Simple tab cycling (could be expanded)

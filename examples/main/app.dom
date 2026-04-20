@@ -80,8 +80,7 @@
         color: #CDD6F4;
         border: #313244;
         border-width: 1;
-        border-radius: 4;
-        padding: 8;
+        border-radius: 6;
         width: var(--input-width);
         height: 36;
         font-size: 14;
@@ -93,13 +92,22 @@
     }
 
     /* ---- Log Panel ---- */
-    #logs {
-        font-size: 13;
-        color: #A6E3A1;
+    #log-container {
         bg: #11111B;
         border: #313244;
         border-radius: 8;
+        x: 24;
+        y: 244;
+        width: 812;
+        height: 372;
+        overflow-y: auto;
+    }
+    #logs {
+        font-size: 13;
+        color: #A6E3A1;
+        bg: #00000000;
         padding: 12;
+        width: 788;
     }
 
     /* ---- Close Button ---- */
@@ -127,30 +135,32 @@
         <Text class="drag-text" text="Drag Me!" width="100%" height="100%" />
     </View>
 
-    <Text color="#A6ADC8" font-size="13" x="24" y="50" text="Custom JS engine • GDI+ rendering • No Duktape/V8/WebView" />
+    <Text color="#6C7086" font-size="13" x="24" y="52" width="600" height="20" white-space="nowrap" text="Custom JS engine • GDI+ rendering • No Duktape/V8/WebView" />
 
     <!-- Controls Section -->
-    <Text class="section-label" x="24" y="84" text="INTERACTIVE CONTROLS" />
+    <Text class="section-label" x="24" y="78" text="INTERACTIVE CONTROLS" white-space="nowrap" />
 
-    <TextInput id="input-demo" x="24" y="106" />
+    <TextInput id="input-demo" x="24" y="98" />
 
-    <Button id="btn-resize" x="440" y="106" onClick="doResize();" />
-    <Button id="btn-center" x="576" y="106" onClick="doCenter();" />
-    <Button id="btn-dll"    x="712" y="106" onClick="testDLL();" />
+    <Button id="btn-resize" x="440" y="98" onClick="doResize();" />
+    <Button id="btn-center" x="576" y="98" onClick="doCenter();" />
+    <Button id="btn-dll"    x="712" y="98" onClick="testDLL();" />
 
     <!-- Advanced Section -->
-    <Text class="section-label" x="24" y="160" text="ASYNC / FETCH / EVENTS" />
+    <Text class="section-label" x="24" y="150" text="ASYNC / FETCH / EVENTS" white-space="nowrap" />
 
-    <Button id="btn-fetch"  x="24"  y="182" onClick="doFetch();" />
-    <Button id="btn-timer"  x="160" y="182" onClick="startTimer();" />
-    <Button id="btn-custom" x="296" y="182" onClick="fireCustomEvent();" />
-    <Button id="btn-screen" x="432" y="182" onClick="getScreenInfo();" />
-    <Button id="btn-opacity" x="568" y="182" onClick="toggleOpacity();" />
+    <Button id="btn-fetch"  x="24"  y="172" onClick="doFetch();" />
+    <Button id="btn-timer"  x="160" y="172" onClick="startTimer();" />
+    <Button id="btn-custom" x="296" y="172" onClick="fireCustomEvent();" />
+    <Button id="btn-screen" x="432" y="172" onClick="getScreenInfo();" />
+    <Button id="btn-opacity" x="568" y="172" onClick="toggleOpacity();" />
 
     <!-- Log Output -->
-    <Text class="section-label" x="24" y="232" text="SYSTEM LOG" />
-    <Text id="mouse-pos" x="650" y="232" text="Mouse: 0, 0" color="#6C7086" font-size="11" />
-    <Text id="logs" x="24" y="254" width="812" height="362" text="" />
+    <Text class="section-label" x="24" y="222" text="SYSTEM LOG" white-space="nowrap" />
+    <Text id="mouse-pos" x="650" y="222" text="Mouse: 0, 0" color="#6C7086" font-size="11" white-space="nowrap" />
+    <View id="log-container">
+        <Text id="logs" text="" />
+    </View>
 
 </ui>
 
@@ -160,14 +170,20 @@
     var timerCount = 0;
     var timerHandle = null;
 
+    var _logContainer = null;
+
     function log(msg) {
         sys.log(msg);
         logLines.push(msg);
-        if (logLines.length > 22) logLines.shift();
         var el = document.querySelector("#logs");
         if (el) {
             el.setAttribute("text", logLines.join("\n"));
         }
+        /* Auto-scroll log container to bottom */
+        if (!_logContainer) {
+            _logContainer = document.shadowDomSelector("#log-container");
+        }
+        if (_logContainer) _logContainer.setScrollTop(999999);
     }
 
     var dragBox = null;
@@ -247,25 +263,31 @@
         startBoxX = 0;
         startBoxY = 0;
         dragBox = document.shadowDomSelector("#drag-box");
+        log("  DragBox found: " + (dragBox ? "yes" : "no"));
 
         dragBox.addEventListener("mousedown", function(e) {
             isBoxDragging = true;
-            // Parse current x and y, if null fallback to 0
             var curX = parseInt(dragBox.getAttribute("x") || "0");
             var curY = parseInt(dragBox.getAttribute("y") || "0");
             startBoxX = e.clientX - curX;
             startBoxY = e.clientY - curY;
+            log("  [Drag] mousedown at (" + e.clientX + "," + e.clientY + ") box=(" + curX + "," + curY + ")");
         });
 
         document.addEventListener("mousemove", function(e) {
             if (isBoxDragging && dragBox) {
-                dragBox.setAttribute("x", e.clientX - startBoxX);
-                dragBox.setAttribute("y", e.clientY - startBoxY);
+                var nx = e.clientX - startBoxX;
+                var ny = e.clientY - startBoxY;
+                dragBox.setAttribute("x", nx);
+                dragBox.setAttribute("y", ny);
             }
         });
 
         document.addEventListener("mouseup", function() {
-            isBoxDragging = false;
+            if (isBoxDragging) {
+                isBoxDragging = false;
+                log("  [Drag] mouseup — done");
+            }
         });
     }
 
