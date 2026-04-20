@@ -131,6 +131,24 @@ public:
             return Value::Undefined();
         }));
 
+        // document.measureText(text, fontSize?) -> pixel width using NanoVG
+        doc->setProperty("measureText", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            extern NVGcontext* g_nvg;
+            if (!g_nvg || args.empty()) return Value::Num(0);
+            std::string text = args[0]->toString();
+            if (text.empty()) return Value::Num(0);
+            float fontSize = args.size() > 1 ? (float)args[1]->toNumber() : 14.0f;
+            std::string fontFamily = args.size() > 2 ? args[2]->toString() : "Segoe UI";
+            nvgSave(g_nvg);
+            nvgFontSize(g_nvg, fontSize);
+            LoadFontToVG(g_nvg, fontFamily);
+            nvgFontFace(g_nvg, fontFamily.c_str());
+            nvgTextAlign(g_nvg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+            float advance = nvgTextBounds(g_nvg, 0, 0, text.c_str(), NULL, NULL);
+            nvgRestore(g_nvg);
+            return Value::Num((double)advance);
+        }));
+
         interp.defineGlobal("document", doc);
         interp.defineGlobal("window", doc);
 
@@ -255,6 +273,15 @@ public:
         eventObj->setProperty("type", Value::Str(type));
         eventObj->setProperty("keyCode", Value::Num((double)keyCode));
         eventObj->setProperty("key", Value::Str(key));
+
+        // Modifier key state (via Win32 GetKeyState)
+        bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+        bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+        bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
+        eventObj->setProperty("ctrlKey", Value::Bool(ctrl));
+        eventObj->setProperty("shiftKey", Value::Bool(shift));
+        eventObj->setProperty("altKey", Value::Bool(alt));
+
         eventObj->setProperty("preventDefault", Value::Native([eventObj](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
             eventObj->setProperty("defaultPrevented", Value::Bool(true));
             return Value::Undefined();
@@ -269,8 +296,10 @@ public:
             return Value::Undefined();
         }));
 
-        // Update sys.event for legacy compatibility
-        char kcBuf[32]; snprintf(kcBuf, sizeof(kcBuf), "sys.event.keyCode = %d", keyCode);
+        // Update sys.event for legacy compatibility (includes modifier state)
+        char kcBuf[192]; snprintf(kcBuf, sizeof(kcBuf),
+            "sys.event.keyCode = %d; sys.event.ctrlKey = %s; sys.event.shiftKey = %s; sys.event.altKey = %s",
+            keyCode, ctrl ? "true" : "false", shift ? "true" : "false", alt ? "true" : "false");
         interp.exec(kcBuf);
 
         dispatchScriptEvent(el, type, eventObj);

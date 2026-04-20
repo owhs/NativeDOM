@@ -821,15 +821,7 @@ public:
             
             nvgTextAlign(vg, align);
             
-            if (isFocused && tag == "Text") {
-                Element* curr = parent ? parent : shadowHost;
-                while (curr && curr->tag != "TextInput") {
-                    curr = curr->parent ? curr->parent : curr->shadowHost;
-                }
-                if (curr && curr->tag == "TextInput") {
-                    if ((GetTickCount64() / 500) % 2 == 0) display += "|";
-                }
-            }
+            // (Caret is now handled by the TextInput component via separate View element)
             
             int padL = GetInt("padding-left", GetInt("padding", 0));
             int padR = GetInt("padding-right", GetInt("padding", 0));

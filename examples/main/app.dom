@@ -10,7 +10,7 @@
         color: #CDD6F4;
         border-radius: 12;
     }
-    
+
     #drag-box {
         bg: #CBA6F7;
         width: 100;
@@ -155,188 +155,188 @@
 </ui>
 
 <script>
-var logLines = [];
-var isTransparent = false;
-var timerCount = 0;
-var timerHandle = null;
+    var logLines = [];
+    var isTransparent = false;
+    var timerCount = 0;
+    var timerHandle = null;
 
-function log(msg) {
-    sys.log(msg);
-    logLines.push(msg);
-    if (logLines.length > 22) logLines.shift();
-    var el = document.querySelector("#logs");
-    if (el) {
-        el.setAttribute("text", logLines.join("\n"));
-    }
-}
-
-var dragBox = null;
-var isBoxDragging = false;
-var startBoxX = 0, startBoxY = 0;
-
-function onAppLoad() {
-    log("✓ DOM Engine loaded successfully");
-    log("  Zero external dependencies — custom JS interpreter");
-    log("  GDI+ rendering with double buffering");
-    log("  Full event system with bubbling & propagation control");
-    log("");
-
-    // Set button labels via shadow DOM
-    var labels = {
-        "#btn-resize": "Resize",
-        "#btn-center": "Center",
-        "#btn-dll": "DLL Call",
-        "#btn-fetch": "Fetch URL",
-        "#btn-timer": "Start Timer",
-        "#btn-custom": "Custom Evt",
-        "#btn-screen": "Screen Info",
-        "#btn-opacity": "Opacity",
-        "#btn-close": "❌"
-    };
-
-    var keys = Object.keys(labels);
-    for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
-        var txt = document.shadowDomSelector(key + " Text");
-        if (txt) txt.setAttribute("text", labels[key]);
+    function log(msg) {
+        sys.log(msg);
+        logLines.push(msg);
+        if (logLines.length > 22) logLines.shift();
+        var el = document.querySelector("#logs");
+        if (el) {
+            el.setAttribute("text", logLines.join("\n"));
+        }
     }
 
-    // Track all standard mouse events
-    document.addEventListener("mousedown", function(e) {
-        log("  [Global] " + e.type + " event received");
-    });
-    document.addEventListener("mouseup", function(e) {
-        log("  [Global] " + e.type + " event received");
-    });
-    document.addEventListener("click", function(e) {
-        log("  [Global] " + e.type + " event received");
-    });
+    var dragBox = null;
+    var isBoxDragging = false;
+    var startBoxX = 0, startBoxY = 0;
 
-    // Track mouse movement and update label (avoids log spam)
-    document.addEventListener("mousemove", function(e) {
-        var posEl = document.getElementById("mouse-pos");
-        if (posEl) posEl.setAttribute("text", "Mouse: " + e.clientX + ", " + e.clientY);
-    });
+    function onAppLoad() {
+        log("✓ DOM Engine loaded successfully");
+        log("  Zero external dependencies — custom JS interpreter");
+        log("  GDI+ rendering with double buffering");
+        log("  Full event system with bubbling & propagation control");
+        log("");
 
-    // Make the logs box scale responsively
-    document.addEventListener("resize", function(e) {
-        var logs = document.getElementById("logs");
-        if (logs) {
-            logs.setAttribute("width", e.width - 48);
-            logs.setAttribute("height", e.height - 254 - 24);
+        // Set button labels via shadow DOM
+        var labels = {
+            "#btn-resize": "Resize",
+            "#btn-center": "Center",
+            "#btn-dll": "DLL Call",
+            "#btn-fetch": "Fetch URL",
+            "#btn-timer": "Start Timer",
+            "#btn-custom": "Custom Evt",
+            "#btn-screen": "Screen Info",
+            "#btn-opacity": "Opacity",
+            "#btn-close": "❌"
+        };
+
+        var keys = Object.keys(labels);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var txt = document.shadowDomSelector(key + " Text");
+            if (txt) txt.setAttribute("text", labels[key]);
         }
-        
-        // Force TitleBar resize dynamically
-        var tb = document.getElementById("main-titlebar");
-        if (tb) {
-            tb.setAttribute("width", e.width);
-        }
-    });
 
-    // Register custom event listener
-    document.addEventListener("myCustomEvent", function(e) {
-        log("  [Custom Event] Received: myCustomEvent");
-    });
+        // Track all standard mouse events
+        document.addEventListener("mousedown", function(e) {
+            log("  [Global] " + e.type + " event received");
+        });
+        document.addEventListener("mouseup", function(e) {
+            log("  [Global] " + e.type + " event received");
+        });
+        document.addEventListener("click", function(e) {
+            log("  [Global] " + e.type + " event received");
+        });
 
-    // Center the window
-    sys.window.center();
-    log("Window bounds captured natively using C++ binding.");
-    
-    // Custom Draggable element!
-    isBoxDragging = false;
-    startBoxX = 0;
-    startBoxY = 0;
-    dragBox = document.shadowDomSelector("#drag-box");
-    
-    dragBox.addEventListener("mousedown", function(e) {
-        isBoxDragging = true;
-        // Parse current x and y, if null fallback to 0
-        var curX = parseInt(dragBox.getAttribute("x") || "0");
-        var curY = parseInt(dragBox.getAttribute("y") || "0");
-        startBoxX = e.clientX - curX;
-        startBoxY = e.clientY - curY;
-    });
-    
-    document.addEventListener("mousemove", function(e) {
-        if (isBoxDragging && dragBox) {
-            dragBox.setAttribute("x", e.clientX - startBoxX);
-            dragBox.setAttribute("y", e.clientY - startBoxY);
-        }
-    });
+        // Track mouse movement and update label (avoids log spam)
+        document.addEventListener("mousemove", function(e) {
+            var posEl = document.getElementById("mouse-pos");
+            if (posEl) posEl.setAttribute("text", "Mouse: " + e.clientX + ", " + e.clientY);
+        });
 
-    document.addEventListener("mouseup", function() {
+        // Make the logs box scale responsively
+        document.addEventListener("resize", function(e) {
+            var logs = document.getElementById("logs");
+            if (logs) {
+                logs.setAttribute("width", e.width - 48);
+                logs.setAttribute("height", e.height - 254 - 24);
+            }
+
+            // Force TitleBar resize dynamically
+            var tb = document.getElementById("main-titlebar");
+            if (tb) {
+                tb.setAttribute("width", e.width);
+            }
+        });
+
+        // Register custom event listener
+        document.addEventListener("myCustomEvent", function(e) {
+            log("  [Custom Event] Received: myCustomEvent");
+        });
+
+        // Center the window
+        sys.window.center();
+        log("Window bounds captured natively using C++ binding.");
+
+        // Custom Draggable element!
         isBoxDragging = false;
-    });
-}
+        startBoxX = 0;
+        startBoxY = 0;
+        dragBox = document.shadowDomSelector("#drag-box");
 
-function doResize() {
-    log("→ Resizing window to 1024×768...");
-    sys.window.resize(1024, 768);
-}
+        dragBox.addEventListener("mousedown", function(e) {
+            isBoxDragging = true;
+            // Parse current x and y, if null fallback to 0
+            var curX = parseInt(dragBox.getAttribute("x") || "0");
+            var curY = parseInt(dragBox.getAttribute("y") || "0");
+            startBoxX = e.clientX - curX;
+            startBoxY = e.clientY - curY;
+        });
 
-function doCenter() {
-    log("→ Centering window...");
-    sys.window.center();
-}
+        document.addEventListener("mousemove", function(e) {
+            if (isBoxDragging && dragBox) {
+                dragBox.setAttribute("x", e.clientX - startBoxX);
+                dragBox.setAttribute("y", e.clientY - startBoxY);
+            }
+        });
 
-function testDLL() {
-    log("→ Calling User32.dll!MessageBoxA...");
-    sys.dllCall("User32.dll", "MessageBoxA", [0, "Hello from DOM's custom JS engine!", "DOM DLL Bridge", 0]);
-    log("  DLL call returned.");
-}
-
-function doFetch() {
-    log("→ Fetching https://httpbin.org/get ...");
-    fetch("https://httpbin.org/get").then(function(response) {
-        log("  ✓ Response: " + response.status);
-        log("  Body length: " + response.body.length + " bytes");
-    });
-}
-
-function startTimer() {
-    if (timerHandle) {
-        clearInterval(timerHandle);
-        timerHandle = null;
-        timerCount = 0;
-        log("  ⏹ Timer stopped.");
-        var btn = document.shadowDomSelector("#btn-timer Text");
-        if (btn) btn.setAttribute("text", "Start Timer");
-        return;
+        document.addEventListener("mouseup", function() {
+            isBoxDragging = false;
+        });
     }
-    log("→ Starting interval timer...");
-    var btn2 = document.shadowDomSelector("#btn-timer Text");
-    if (btn2) btn2.setAttribute("text", "Stop Timer");
 
-    timerHandle = setInterval(function() {
-        timerCount++;
-        log("  ⏱ Timer tick #" + timerCount);
-        if (timerCount >= 10) {
+    function doResize() {
+        log("→ Resizing window to 1024×768...");
+        sys.window.resize(1024, 768);
+    }
+
+    function doCenter() {
+        log("→ Centering window...");
+        sys.window.center();
+    }
+
+    function testDLL() {
+        log("→ Calling User32.dll!MessageBoxA...");
+        sys.dllCall("User32.dll", "MessageBoxA", [0, "Hello from DOM's custom JS engine!", "DOM DLL Bridge", 0]);
+        log("  DLL call returned.");
+    }
+
+    function doFetch() {
+        log("→ Fetching https://httpbin.org/get ...");
+        fetch("https://httpbin.org/get").then(function(response) {
+            log("  ✓ Response: " + response.status);
+            log("  Body length: " + response.body.length + " bytes");
+        });
+    }
+
+    function startTimer() {
+        if (timerHandle) {
             clearInterval(timerHandle);
             timerHandle = null;
             timerCount = 0;
-            log("  ⏹ Timer auto-stopped at 10 ticks.");
-            var btn3 = document.shadowDomSelector("#btn-timer Text");
-            if (btn3) btn3.setAttribute("text", "Start Timer");
+            log("  ⏹ Timer stopped.");
+            var btn = document.shadowDomSelector("#btn-timer Text");
+            if (btn) btn.setAttribute("text", "Start Timer");
+            return;
         }
-    }, 1000);
-}
+        log("→ Starting interval timer...");
+        var btn2 = document.shadowDomSelector("#btn-timer Text");
+        if (btn2) btn2.setAttribute("text", "Stop Timer");
 
-function fireCustomEvent() {
-    log("→ Dispatching custom event...");
-    var evt = CustomEvent("myCustomEvent", { detail: "test-payload" });
-    document.dispatchEvent(evt);
-}
+        timerHandle = setInterval(function() {
+            timerCount++;
+            log("  ⏱ Timer tick #" + timerCount);
+            if (timerCount >= 10) {
+                clearInterval(timerHandle);
+                timerHandle = null;
+                timerCount = 0;
+                log("  ⏹ Timer auto-stopped at 10 ticks.");
+                var btn3 = document.shadowDomSelector("#btn-timer Text");
+                if (btn3) btn3.setAttribute("text", "Start Timer");
+            }
+        }, 1000);
+    }
 
-function getScreenInfo() {
-    var info = sys.screen.getInfo();
-    log("→ Screen: " + info.width + "×" + info.height + " (" + info.monitors + " monitor(s))");
-    log("  Work area: " + info.workArea.width + "×" + info.workArea.height);
-    log("  DPI: " + sys.screen.getDPI());
-}
+    function fireCustomEvent() {
+        log("→ Dispatching custom event...");
+        var evt = CustomEvent("myCustomEvent", { detail: "test-payload" });
+        document.dispatchEvent(evt);
+    }
 
-function toggleOpacity() {
-    isTransparent = !isTransparent;
-    sys.window.setOpacity(isTransparent ? 0.7 : 1.0);
-    log("→ Opacity: " + (isTransparent ? "70%" : "100%"));
-}
+    function getScreenInfo() {
+        var info = sys.screen.getInfo();
+        log("→ Screen: " + info.width + "×" + info.height + " (" + info.monitors + " monitor(s))");
+        log("  Work area: " + info.workArea.width + "×" + info.workArea.height);
+        log("  DPI: " + sys.screen.getDPI());
+    }
+
+    function toggleOpacity() {
+        isTransparent = !isTransparent;
+        sys.window.setOpacity(isTransparent ? 0.7 : 1.0);
+        log("→ Opacity: " + (isTransparent ? "70%" : "100%"));
+    }
 </script>
