@@ -3,8 +3,11 @@
 #include <dwmapi.h>
 #include "../Core/Value.h"
 #include "COMBridge.h"
+#include "../DOM/Element.h"
+#include <memory>
 
 extern HWND g_hwnd;
+extern std::shared_ptr<Element> appRoot;
 
 inline HHOOK g_keyboardHook = NULL;
 inline ValuePtr g_keyboardHookCallback = nullptr;
@@ -452,7 +455,45 @@ public:
             return Value::Undefined();
         }));
 
+        windowObj->setProperty("setBackdrop", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty() || !dynAPI._DwmSetWindowAttribute) return Value::Bool(false);
+            std::string backdrop = args[0]->toString();
+            DWORD backdropType = 0;
+            if (backdrop == "mica") backdropType = 2; // DWMSBT_MAINWINDOW
+            else if (backdrop == "acrylic") backdropType = 3; // DWMSBT_TRANSIENTWINDOW
+            else if (backdrop == "tabbed") backdropType = 4; // DWMSBT_TABBEDWINDOW
+            else if (backdrop == "none" || backdrop == "") backdropType = 1; // DWMSBT_NONE
+            
+            if (appRoot) {
+                appRoot->SetProp("system-backdrop", backdrop); // Update state so clearColor reflects it
+                
+                // Make sure margins are extended if enabling
+                if (dynAPI._DwmExtendFrameIntoClientArea) {
+                    MARGINS ms = (backdropType > 1) ? MARGINS{ -1, -1, -1, -1 } : (appRoot->Get("system-shadow") == "true" ? MARGINS{1, 1, 1, 1} : MARGINS{0, 0, 0, 0});
+                    dynAPI._DwmExtendFrameIntoClientArea(g_hwnd, &ms);
+                }
+            }
+
+            if (backdropType != 0) {
+                dynAPI._DwmSetWindowAttribute(g_hwnd, 38 /*DWMWA_SYSTEMBACKDROP_TYPE*/, &backdropType, sizeof(backdropType));
+                InvalidateRect(g_hwnd, NULL, FALSE);
+                return Value::Bool(true);
+            }
+            return Value::Bool(false);
+        }));
+
+        windowObj->setProperty("setTheme", Value::Native([](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+            if (args.empty() || !dynAPI._DwmSetWindowAttribute) return Value::Bool(false);
+            std::string themeMode = args[0]->toString();
+            DWORD dark = (themeMode == "dark") ? 1 : 0;
+            if (appRoot) appRoot->SetProp("theme", themeMode); // Update state
+            dynAPI._DwmSetWindowAttribute(g_hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
+            InvalidateRect(g_hwnd, NULL, FALSE);
+            return Value::Bool(true);
+        }));
+
         sysObj->setProperty("window", windowObj);
+        sysObj->setProperty("ui", windowObj);
 
         // ---- sys.screen ----
         auto screenObj = Value::Object();

@@ -323,11 +323,7 @@ void RequestRedraw(HWND hwnd) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     } else {
         glViewport(0, 0, w, h);
-        if (appRoot->Get("transparent") == "true" || !appRoot->Get("system-backdrop").empty()) {
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        } else {
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        }
+        glClearColor(0, 0, 0, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         nvgBeginFrame(g_nvg, (float)w, (float)h, 1.0f);
@@ -513,18 +509,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 dynAPI._SetWindowLongA(hwnd, GWL_EXSTYLE, exStyle);
 
                 if (dynAPI._DwmExtendFrameIntoClientArea) {
-                    bool hasBackdrop = !appRoot->Get("system-backdrop").empty();
-                    if (appRoot->Get("system-shadow") == "true" || hasBackdrop) {
+                    if (appRoot->Get("system-shadow") == "true") {
                         if (dynAPI._DwmSetWindowAttribute) {
                             DWORD policy = 2; // DWMNCRP_ENABLED
                             dynAPI._DwmSetWindowAttribute(hwnd, 2 /*DWMWA_NCRENDERING_POLICY*/, &policy, sizeof(policy));
-                            DWORD cornerPref = hasBackdrop ? 0 /*DWMWCP_DEFAULT*/ : 2 /*DWMWCP_ROUND*/;
+                            DWORD cornerPref = 2; // DWMWCP_ROUND
                             dynAPI._DwmSetWindowAttribute(hwnd, 33, &cornerPref, sizeof(cornerPref));
                         }
                         MARGINS ms = { 1, 1, 1, 1 };
-                        if (hasBackdrop) {
-                            ms = { -1, -1, -1, -1 };
-                        }
                         dynAPI._DwmExtendFrameIntoClientArea(hwnd, &ms);
                     } else if (appRoot->Get("system-shadow") == "false") {
                         if (dynAPI._DwmSetWindowAttribute) {
@@ -542,24 +534,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                             DWORD cornerPref = 0; // DWMWCP_DEFAULT
                             dynAPI._DwmSetWindowAttribute(hwnd, 33, &cornerPref, sizeof(cornerPref));
                         }
-                    }
-
-                    // Apply System Backdrop Materials
-                    if (dynAPI._DwmSetWindowAttribute) {
-                        std::string backdrop = appRoot->Get("system-backdrop");
-                        DWORD backdropType = 0;
-                        if (backdrop == "mica") backdropType = 2; // DWMSBT_MAINWINDOW
-                        else if (backdrop == "acrylic") backdropType = 3; // DWMSBT_TRANSIENTWINDOW
-                        else if (backdrop == "tabbed") backdropType = 4; // DWMSBT_TABBEDWINDOW
-                        else if (backdrop == "none") backdropType = 1; // DWMSBT_NONE
-                        
-                        if (backdropType != 0) {
-                            dynAPI._DwmSetWindowAttribute(hwnd, 38 /*DWMWA_SYSTEMBACKDROP_TYPE*/, &backdropType, sizeof(backdropType));
-                        }
-                        
-                        std::string themeMode = appRoot->Get("theme");
-                        DWORD dark = (themeMode == "dark") ? 1 : 0;
-                        dynAPI._DwmSetWindowAttribute(hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
                     }
                 }
                 
@@ -1571,20 +1545,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR lpCmdLine, int) {
     nvgCreateFont(g_nvg, "Segoe UI", fontPath.c_str());
 
     if (g_hwnd && dynAPI._DwmExtendFrameIntoClientArea) {
-        bool hasBackdrop = !appRoot->Get("system-backdrop").empty();
-        if (appRoot->Get("system-shadow") == "true" || hasBackdrop) {
+        if (appRoot->Get("system-shadow") == "true") {
             if (dynAPI._DwmSetWindowAttribute) {
                 DWORD policy = 2; // DWMNCRP_ENABLED
                 dynAPI._DwmSetWindowAttribute(g_hwnd, 2 /*DWMWA_NCRENDERING_POLICY*/, &policy, sizeof(policy));
-                DWORD cornerPref = hasBackdrop ? 0 /*DWMWCP_DEFAULT*/ : 2 /*DWMWCP_ROUND*/;
+                DWORD cornerPref = 2; // DWMWCP_ROUND
                 dynAPI._DwmSetWindowAttribute(g_hwnd, 33, &cornerPref, sizeof(cornerPref));
                 DWORD borderColor = 0xFFFFFFFE; // DWMWA_COLOR_NONE
                 dynAPI._DwmSetWindowAttribute(g_hwnd, 34, &borderColor, sizeof(borderColor));
             }
             MARGINS ms = { 1, 1, 1, 1 };
-            if (hasBackdrop) {
-                ms = { -1, -1, -1, -1 };
-            }
             dynAPI._DwmExtendFrameIntoClientArea(g_hwnd, &ms);
         } else if (appRoot->Get("system-shadow") == "false") {
             if (dynAPI._DwmSetWindowAttribute) {
@@ -1595,24 +1565,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR lpCmdLine, int) {
             }
             MARGINS ms = { 0, 0, 0, 0 };
             dynAPI._DwmExtendFrameIntoClientArea(g_hwnd, &ms);
-        }
-
-        // Apply System Backdrop Materials
-        if (dynAPI._DwmSetWindowAttribute) {
-            std::string backdrop = appRoot->Get("system-backdrop");
-            DWORD backdropType = 0;
-            if (backdrop == "mica") backdropType = 2; // DWMSBT_MAINWINDOW
-            else if (backdrop == "acrylic") backdropType = 3; // DWMSBT_TRANSIENTWINDOW
-            else if (backdrop == "tabbed") backdropType = 4; // DWMSBT_TABBEDWINDOW
-            else if (backdrop == "none") backdropType = 1; // DWMSBT_NONE
-            
-            if (backdropType != 0) {
-                dynAPI._DwmSetWindowAttribute(g_hwnd, 38 /*DWMWA_SYSTEMBACKDROP_TYPE*/, &backdropType, sizeof(backdropType));
-            }
-            
-            std::string themeMode = appRoot->Get("theme");
-            DWORD dark = (themeMode == "dark") ? 1 : 0;
-            dynAPI._DwmSetWindowAttribute(g_hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
         }
     }
 

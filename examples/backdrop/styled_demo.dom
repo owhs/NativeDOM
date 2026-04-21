@@ -1,0 +1,143 @@
+<style>
+    ui {
+        font-family: Segoe UI, sans-serif;
+    }
+
+    .container {
+        padding: 30;
+    }
+
+    .card {
+        bg: color-mix(in srgb, #000 35%, transparent);
+        border: 1 solid color-mix(in srgb, #FFF 10%, transparent);
+        border-radius: 12;
+        padding: 24;
+        box-shadow-blur: 20;
+        box-shadow-color: color-mix(in srgb, #000 50%, transparent);
+    }
+
+    .header-title {
+        font-size: 26;
+        font-weight: bold;
+        color: #FFFFFF;
+    }
+
+    .header-sub {
+        font-size: 14;
+        color: #CCCCCC;
+    }
+
+    .btn {
+        bg: color-mix(in srgb, #FFF 10%, transparent);
+        border: 1 solid color-mix(in srgb, #FFF 15%, transparent);
+        color: #FFFFFF;
+        font-size: 14;
+        font-weight: 500;
+        border-radius: 8;
+        cursor: pointer;
+        transition: bg 0.2s ease, border 0.2s ease;
+        text-align: center;
+        padding-top: 12;
+        padding-bottom: 12;
+    }
+    .btn:hover {
+        bg: color-mix(in srgb, #FFF 20%, transparent);
+        border: 1 solid color-mix(in srgb, #FFF 25%, transparent);
+    }
+    .btn:active {
+        bg: color-mix(in srgb, #FFF 5%, transparent);
+    }
+
+    .theme-btn-dark {
+        bg: #11111B;
+        border: 1 solid #313244;
+        color: #CDD6F4;
+        font-size: 14;
+        font-weight: 500;
+        border-radius: 8;
+        cursor: pointer;
+        transition: bg 0.2s ease;
+        text-align: center;
+        padding-top: 12;
+        padding-bottom: 12;
+    }
+    .theme-btn-dark:hover { bg: #313244; }
+    .theme-btn-dark:active { bg: #000000; }
+
+    .theme-btn-light {
+        bg: #EFF1F5;
+        border: 1 solid #CCD0DA;
+        color: #4C4F69;
+        font-size: 14;
+        font-weight: 500;
+        border-radius: 8;
+        cursor: pointer;
+        transition: bg 0.2s ease;
+        text-align: center;
+        padding-top: 12;
+        padding-bottom: 12;
+    }
+    .theme-btn-light:hover { bg: #E6E9EF; }
+    .theme-btn-light:active { bg: #DCE0E8; }
+</style>
+
+<ui system-shadow="true" system-backdrop="mica" theme="dark" frameless="false" title="NativeDOM Materials" width="800" height="600" bg="#00000000">
+
+    <!-- Outermost container -->
+    <div class="container" layout="col" align="center" gap="24" width="100%" height="100%">
+        
+        <Text text="" width="100%" height="15" /> <!-- Visual spacer map mapping centered Y pos natively -->
+
+        <!-- Backdrop Selector Component | EXPLICIT HEIGHT 236 -->
+        <div class="card" layout="col" gap="14" width="460" height="236">
+            <Text class="header-title" text="System Backdrops" width="100%" height="32" />
+            <Text class="header-sub" text="Native Windows 11 Desktop Window Manager effects." width="100%" height="24" />
+
+            <!-- Row 1 | EXPLICIT HEIGHT 42 -->
+            <div layout="row" gap="12" width="100%" height="42">
+                <div class="btn" width="48%" height="42" onClick="applyMaterial('mica')">Mica (Win 11)</div>
+                <div class="btn" width="48%" height="42" onClick="applyMaterial('acrylic')">Acrylic (Frosted)</div>
+            </div>
+
+            <!-- Row 2 | EXPLICIT HEIGHT 42 -->
+            <div layout="row" gap="12" width="100%" height="42">
+                <div class="btn" width="48%" height="42" onClick="applyMaterial('tabbed')">Tabbed (Mica Alt)</div>
+                <div class="btn" width="48%" height="42" onClick="applyMaterial('none')">Solid Background</div>
+            </div>
+        </div>
+
+        <!-- Theme Toggle Component | EXPLICIT HEIGHT 180 -->
+        <div class="card" layout="col" gap="14" width="460" height="180">
+            <Text class="header-title" text="OS Accent Match" font-size="20" width="100%" height="26" />
+            <Text class="header-sub" text="Switches immersive mode hint (requires window re-cache)." width="100%" height="40" white-space="normal" />
+
+            <!-- Row 1 | EXPLICIT HEIGHT 42 -->
+            <div layout="row" gap="12" width="100%" height="42">
+                <div class="theme-btn-dark" width="48%" height="42" onClick="applyTheme('dark')">Use Dark Profile</div>
+                <div class="theme-btn-light" width="48%" height="42" onClick="applyTheme('light')">Use Light Profile</div>
+            </div>
+        </div>
+
+    </div>
+
+</ui>
+
+<script>
+    function applyMaterial(m) {
+        if (sys.ui) {
+            sys.ui.setBackdrop(m);
+        } else if (sys.window) {
+            sys.window.setBackdrop(m);
+        }
+        sys.log("Applied system backdrop material: " + m);
+    }
+    
+    function applyTheme(t) {
+        if (sys.ui) {
+            sys.ui.setTheme(t);
+        } else if (sys.window) {
+            sys.window.setTheme(t);
+        }
+        sys.log("Toggled immersive rendering theme to: " + t);
+    }
+</script>
