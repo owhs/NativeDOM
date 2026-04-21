@@ -179,6 +179,54 @@ namespace Hooks {
         if (pGetClipboardData) return pGetClipboardData(uFormat);
         return nullptr;
     }
+
+    inline HWND _FindWindowA(LPCSTR lpClassName, LPCSTR lpWindowName) {
+        HMODULE hUser32 = Hooks::_LoadLibraryA("user32.dll");
+        if (!hUser32) return nullptr;
+        auto pFindWindowA = (HWND(WINAPI*)(LPCSTR, LPCSTR))Hooks::_GetProcAddress(hUser32, "FindWindowA");
+        if (pFindWindowA) return pFindWindowA(lpClassName, lpWindowName);
+        return nullptr;
+    }
+
+    inline LONG _GetWindowLongA(HWND hWnd, int nIndex) {
+        HMODULE hUser32 = Hooks::_LoadLibraryA("user32.dll");
+        if (!hUser32) return 0;
+        auto pGetWindowLongA = (LONG(WINAPI*)(HWND, int))Hooks::_GetProcAddress(hUser32, "GetWindowLongA");
+        if (pGetWindowLongA) return pGetWindowLongA(hWnd, nIndex);
+        return 0;
+    }
+
+    inline BOOL _OpenProcessToken(HANDLE ProcessHandle, DWORD DesiredAccess, PHANDLE TokenHandle) {
+        HMODULE hAdvapi32 = Hooks::_LoadLibraryA("advapi32.dll");
+        if (!hAdvapi32) return FALSE;
+        auto pOpenProcessToken = (BOOL(WINAPI*)(HANDLE, DWORD, PHANDLE))Hooks::_GetProcAddress(hAdvapi32, "OpenProcessToken");
+        if (pOpenProcessToken) return pOpenProcessToken(ProcessHandle, DesiredAccess, TokenHandle);
+        return FALSE;
+    }
+
+    inline HDC _GetDC(HWND hWnd) {
+        HMODULE hUser32 = Hooks::_LoadLibraryA("user32.dll");
+        if (!hUser32) return nullptr;
+        auto pGetDC = (HDC(WINAPI*)(HWND))Hooks::_GetProcAddress(hUser32, "GetDC");
+        if (pGetDC) return pGetDC(hWnd);
+        return nullptr;
+    }
+
+    inline HDC _CreateCompatibleDC(HDC hdc) {
+        HMODULE hGdi32 = Hooks::_LoadLibraryA("gdi32.dll");
+        if (!hGdi32) return nullptr;
+        auto pCreateCompatibleDC = (HDC(WINAPI*)(HDC))Hooks::_GetProcAddress(hGdi32, "CreateCompatibleDC");
+        if (pCreateCompatibleDC) return pCreateCompatibleDC(hdc);
+        return nullptr;
+    }
+
+    inline BOOL _BitBlt(HDC hdc, int x, int y, int cx, int cy, HDC hdcSrc, int x1, int y1, DWORD rop) {
+        HMODULE hGdi32 = Hooks::_LoadLibraryA("gdi32.dll");
+        if (!hGdi32) return FALSE;
+        auto pBitBlt = (BOOL(WINAPI*)(HDC, int, int, int, int, HDC, int, int, DWORD))Hooks::_GetProcAddress(hGdi32, "BitBlt");
+        if (pBitBlt) return pBitBlt(hdc, x, y, cx, cy, hdcSrc, x1, y1, rop);
+        return FALSE;
+    }
 }
 
 #undef GetProcAddress
@@ -200,6 +248,11 @@ namespace Hooks {
 #undef SetClipboardData
 #undef CloseClipboard
 #undef CreateThread
+#undef FindWindowA
+#undef GetWindowLongA
+#undef OpenProcessToken
+#undef CreateCompatibleDC
+#undef BitBlt
 
 #define GetProcAddress Hooks::_GetProcAddress
 #define LoadLibraryA Hooks::_LoadLibraryA
@@ -220,3 +273,8 @@ namespace Hooks {
 #define SetClipboardData Hooks::_SetClipboardData
 #define CloseClipboard Hooks::_CloseClipboard
 #define CreateThread Hooks::_CreateThread
+#define FindWindowA Hooks::_FindWindowA
+#define GetWindowLongA Hooks::_GetWindowLongA
+#define OpenProcessToken Hooks::_OpenProcessToken
+#define CreateCompatibleDC Hooks::_CreateCompatibleDC
+#define BitBlt Hooks::_BitBlt
