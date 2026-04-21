@@ -1,3 +1,7 @@
+> [!CAUTION]
+> This project is currently under development, solely released for experimentation.
+
+
 # NativeDOM Engine
 
 A lightweight C++ custom UI framework with a built-in JS-like scripting engine. NativeDOM abstracts away Windows DWM/GDI hurdles and provides an HTML/CSS/JS-like abstraction layer heavily focused on speed and native OS integration!
