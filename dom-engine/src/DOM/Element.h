@@ -67,8 +67,8 @@ public:
     // Tree structure
     std::vector<std::shared_ptr<Element>> children;       // Light DOM
     std::vector<std::shared_ptr<Element>> shadowChildren;  // Shadow DOM (component internals)
-    Element* parent = nullptr;
-    Element* shadowHost = nullptr;
+    std::weak_ptr<Element> parent;
+    std::weak_ptr<Element> shadowHost;
 
     // Layout
     int x = 0, y = 0, w = 100, h = 30;
@@ -114,7 +114,7 @@ public:
                 varName = inner;
             }
             std::string resolved;
-            Element* curr = this;
+            std::shared_ptr<Element> curr = shared_from_this();
             while (curr) {
                 bool found = false;
                 
@@ -139,7 +139,9 @@ public:
                     if (kv.first == varName && kv.second != "var(" + inner + ")") { resolved = kv.second; found = true; break; }
                 }
                 if (found) break;
-                curr = curr->parent ? curr->parent : curr->shadowHost;
+                auto p = curr->parent.lock();
+                auto sh = curr->shadowHost.lock();
+                curr = p ? p : sh;
             }
             if (resolved.empty()) resolved = defaultVal;
             if (resolved.find("var(") == std::string::npos) {
@@ -227,7 +229,7 @@ public:
         std::string res = def;
         int maxScore = -1;
 
-        Element* curr = this;
+        std::shared_ptr<Element> curr = shared_from_this();
         while (curr) {
             int score = -1;
             std::string localRes = "";
@@ -253,7 +255,7 @@ public:
                         if (!v.empty() && ((v.front() == '\'' && v.back() == '\'') || (v.front() == '"' && v.back() == '"'))) {
                             v = v.substr(1, v.size() - 2);
                         }
-                        Element* host = curr;
+                        std::shared_ptr<Element> host = curr;
                         while (host) {
                             std::string hVal = "";
                             bool found = false;
@@ -264,7 +266,9 @@ public:
                                 if (hVal == v) active = true;
                                 break;
                             }
-                            host = host->parent ? host->parent : host->shadowHost;
+                            auto hp = host->parent.lock();
+                            auto hsh = host->shadowHost.lock();
+                            host = hp ? hp : hsh;
                         }
                     }
                 }
@@ -285,7 +289,7 @@ public:
             }
 
             if (score != -1) {
-                if (curr == this) {
+                if (curr.get() == this) {
                     maxScore = score;
                     res = localRes;
                 } else {
@@ -304,7 +308,9 @@ public:
                 }
             }
 
-            curr = curr->parent ? curr->parent : curr->shadowHost;
+            auto p = curr->parent.lock();
+            auto sh = curr->shadowHost.lock();
+            curr = p ? p : sh;
         }
 
         return ApplyVars(res);
@@ -553,8 +559,13 @@ public:
     // ---- Tree Manipulation ----
     void Adopt(std::shared_ptr<Element> child, bool shadow = false) {
         if (!child) return;
-        child->parent = shadow ? nullptr : this;
-        child->shadowHost = shadow ? this : nullptr;
+        if (shadow) {
+            child->shadowHost = weak_from_this();
+            child->parent.reset();
+        } else {
+            child->parent = weak_from_this();
+            child->shadowHost.reset();
+        }
         if (shadow) shadowChildren.push_back(child);
         else children.push_back(child);
     }
@@ -565,14 +576,14 @@ public:
     }
 
     std::shared_ptr<Element> getParentShared() {
-        // Walk up to find this element's shared_ptr from parent's children
-        return shared_from_this();
+        return parent.lock();
     }
 
     int getChildIndex() const {
-        if (!parent) return 0;
-        for (size_t i = 0; i < parent->children.size(); i++) {
-            if (parent->children[i].get() == this) return (int)i;
+        auto p = parent.lock();
+        if (!p) return 0;
+        for (size_t i = 0; i < p->children.size(); i++) {
+            if (p->children[i].get() == this) return (int)i;
         }
         return 0;
     }
@@ -585,22 +596,24 @@ public:
     virtual void Layout(int px, int py) {
         if (GetRaw("display") == "none") { w = 0; h = 0; return; }
 
-        int pPadL = shadowHost ? shadowHost->GetInt("padding-left", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-left", parent->GetInt("padding", 0)) : 0);
-        int pPadR = shadowHost ? shadowHost->GetInt("padding-right", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-right", parent->GetInt("padding", 0)) : 0);
-        int pPadT = shadowHost ? shadowHost->GetInt("padding-top", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-top", parent->GetInt("padding", 0)) : 0);
-        int pPadB = shadowHost ? shadowHost->GetInt("padding-bottom", shadowHost->GetInt("padding", 0)) : (parent ? parent->GetInt("padding-bottom", parent->GetInt("padding", 0)) : 0);
+        auto p = parent.lock();
+        auto sh = shadowHost.lock();
+        int pPadL = sh ? sh->GetInt("padding-left", sh->GetInt("padding", 0)) : (p ? p->GetInt("padding-left", p->GetInt("padding", 0)) : 0);
+        int pPadR = sh ? sh->GetInt("padding-right", sh->GetInt("padding", 0)) : (p ? p->GetInt("padding-right", p->GetInt("padding", 0)) : 0);
+        int pPadT = sh ? sh->GetInt("padding-top", sh->GetInt("padding", 0)) : (p ? p->GetInt("padding-top", p->GetInt("padding", 0)) : 0);
+        int pPadB = sh ? sh->GetInt("padding-bottom", sh->GetInt("padding", 0)) : (p ? p->GetInt("padding-bottom", p->GetInt("padding", 0)) : 0);
 
         std::string wStr = Get("width");
         if (!wStr.empty() && wStr.back() == '%') {
             float pct = strtof(wStr.substr(0, wStr.size() - 1).c_str(), nullptr) / 100.0f;
-            float pWidth = shadowHost ? shadowHost->w : (parent ? parent->w : w);
+            float pWidth = sh ? sh->w : (p ? p->w : w);
             w = (int)((pWidth - pPadL - pPadR) * pct);
         } else w = GetInt("width", w);
 
         std::string hStr = Get("height");
         if (!hStr.empty() && hStr.back() == '%') {
             float pct = strtof(hStr.substr(0, hStr.size() - 1).c_str(), nullptr) / 100.0f;
-            float pHeight = shadowHost ? shadowHost->h : (parent ? parent->h : h);
+            float pHeight = sh ? sh->h : (p ? p->h : h);
             h = (int)((pHeight - pPadT - pPadB) * pct);
         } else h = GetInt("height", h);
 
@@ -615,14 +628,14 @@ public:
         if (maxH != -1 && h > maxH) h = maxH;
 
         if (!GetRaw("right").empty()) {
-            float pWidth = shadowHost ? shadowHost->w : (parent ? parent->w : 0);
+            float pWidth = sh ? sh->w : (p ? p->w : 0);
             x = px + pWidth - pPadL - pPadR - w - GetInt("right");
         } else {
             x = px + GetInt("x");
         }
 
         if (!GetRaw("bottom").empty()) {
-            float pHeight = shadowHost ? shadowHost->h : (parent ? parent->h : 0);
+            float pHeight = sh ? sh->h : (p ? p->h : 0);
             y = py + pHeight - pPadT - pPadB - h - GetInt("bottom");
         } else {
             y = py + GetInt("y");

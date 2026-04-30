@@ -45,6 +45,12 @@ public:
         initPrototypes();
     }
 
+    ~Interpreter() {
+        if (globalEnv) {
+            globalEnv->clear();
+        }
+    }
+
     void setLogCallback(void (*cb)(const std::string&)) { logCallback = cb; }
     void setInvalidateCallback(void (*cb)()) { invalidateCallback = cb; }
 

@@ -11,8 +11,8 @@ class ScriptBridge {
     Interpreter& interp;
     std::shared_ptr<Element> appRoot;
 
-    // Map Element* -> ValuePtr for consistent JS references
-    std::vector<std::pair<Element*, ValuePtr>> elementCache;
+    // Map Element* -> weak_ptr<Value> for consistent JS references without leaking
+    std::vector<std::pair<Element*, std::weak_ptr<Value>>> elementCache;
 
     // Event listener registry
     struct ListenerList {
@@ -20,7 +20,7 @@ class ScriptBridge {
         std::vector<ValuePtr> callbacks;
     };
     struct ElementListeners {
-        Element* el;
+        std::weak_ptr<Element> el;
         std::vector<ListenerList> lists;
     };
     std::vector<ElementListeners> listenerRegistry;
@@ -237,9 +237,14 @@ public:
         // Element-level listeners
         Element* current = el;
         while (current) {
-            for (auto& lr : listenerRegistry) {
-                if (lr.el == current) {
-                    for (auto& ll : lr.lists) {
+            for (auto it = listenerRegistry.begin(); it != listenerRegistry.end();) {
+                auto lrEl = it->el.lock();
+                if (!lrEl) {
+                    it = listenerRegistry.erase(it);
+                    continue;
+                }
+                if (lrEl.get() == current) {
+                    for (auto& ll : it->lists) {
                         if (ll.type == type) {
                             for (auto& cb : ll.callbacks) {
                                 interp.callFunction(cb, { eventObj });
@@ -248,8 +253,8 @@ public:
                             }
                         }
                     }
-                    break;
                 }
+                ++it;
             }
             // Check for inline handler
             std::string handler = current->Get("on" + capitalize(type));
@@ -261,7 +266,9 @@ public:
             if (propStopped && propStopped->isTruthy()) return;
 
             // Bubble up
-            current = current->parent ? current->parent : current->shadowHost;
+            auto p = current->parent.lock();
+            auto sh = current->shadowHost.lock();
+            current = p ? p.get() : sh.get();
         }
 
         // Global listeners
@@ -385,9 +392,14 @@ public:
     ValuePtr wrapElement(std::shared_ptr<Element> el) {
         if (!el) return Value::Null();
 
-        // Check cache
-        for (auto& ec : elementCache) {
-            if (ec.first == el.get()) return ec.second;
+        // Check cache and clean up dead entries
+        for (auto it = elementCache.begin(); it != elementCache.end();) {
+            if (it->second.expired()) {
+                it = elementCache.erase(it);
+            } else {
+                if (it->first == el.get()) return it->second.lock();
+                ++it;
+            }
         }
 
         auto wrapper = Value::Object();
@@ -485,13 +497,13 @@ public:
         }));
 
         // addEventListener on element
-        wrapper->setProperty("addEventListener", Value::Native([this, rawPtr](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
+        wrapper->setProperty("addEventListener", Value::Native([this, rawPtr, sharedEl](std::vector<ValuePtr> args, ValuePtr) -> ValuePtr {
             if (args.size() < 2) return Value::Undefined();
             std::string type = args[0]->toString();
             
             bool foundEl = false;
             for (auto& lr : listenerRegistry) {
-                if (lr.el == rawPtr) {
+                if (lr.el.lock().get() == rawPtr) {
                     bool foundType = false;
                     for (auto& ll : lr.lists) {
                         if (ll.type == type) { ll.callbacks.push_back(args[1]); foundType = true; break; }
@@ -504,7 +516,7 @@ public:
                 }
             }
             if (!foundEl) {
-                ElementListeners lr; lr.el = rawPtr;
+                ElementListeners lr; lr.el = sharedEl;
                 ListenerList ll; ll.type = type; ll.callbacks.push_back(args[1]);
                 lr.lists.push_back(ll);
                 listenerRegistry.push_back(lr);
@@ -518,7 +530,7 @@ public:
             if (args.size() < 1) return Value::Undefined();
             std::string type = args[0]->toString();
             for (auto& lr : listenerRegistry) {
-                if (lr.el == rawPtr) {
+                if (lr.el.lock().get() == rawPtr) {
                     for (size_t i = 0; i < lr.lists.size(); i++) {
                         if (lr.lists[i].type == type) {
                             lr.lists.erase(lr.lists.begin() + i); break;
@@ -540,8 +552,8 @@ public:
 
         // DOM traversal
         wrapper->setProperty("parentElement", Value::Native([this, sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
-            if (sharedEl->parent) return wrapElement(sharedEl->parent->shared_from_this());
-            if (sharedEl->shadowHost) return wrapElement(sharedEl->shadowHost->shared_from_this());
+            if (auto p = sharedEl->parent.lock()) return wrapElement(p);
+            if (auto sh = sharedEl->shadowHost.lock()) return wrapElement(sh);
             return Value::Null();
         }));
 
@@ -556,13 +568,13 @@ public:
             if (args.empty()) return Value::Undefined();
             auto childWrapper = args[0];
             for (auto& ec : elementCache) {
-                if (ec.second.get() == childWrapper.get()) {
+                if (ec.second.lock().get() == childWrapper.get()) {
                     auto childShared = ec.first->shared_from_this();
                     // Remove from previous parent if any
-                    if (ec.first->parent) {
-                        ec.first->parent->shared_from_this()->RemoveChild(childShared);
-                    } else if (ec.first->shadowHost) {
-                        ec.first->shadowHost->shared_from_this()->RemoveChild(childShared);
+                    if (auto p = ec.first->parent.lock()) {
+                        p->RemoveChild(childShared);
+                    } else if (auto sh = ec.first->shadowHost.lock()) {
+                        sh->RemoveChild(childShared);
                     }
                     sharedEl->Adopt(childShared, false);
                     break;
@@ -576,7 +588,7 @@ public:
             if (args.empty()) return Value::Undefined();
             auto childWrapper = args[0];
             for (auto& ec : elementCache) {
-                if (ec.second.get() == childWrapper.get()) {
+                if (ec.second.lock().get() == childWrapper.get()) {
                     sharedEl->RemoveChild(ec.first->shared_from_this());
                     break;
                 }
@@ -592,10 +604,10 @@ public:
         }));
 
         wrapper->setProperty("remove", Value::Native([sharedEl](std::vector<ValuePtr>, ValuePtr) -> ValuePtr {
-            if (sharedEl->parent) {
-                sharedEl->parent->shared_from_this()->RemoveChild(sharedEl);
-            } else if (sharedEl->shadowHost) {
-                sharedEl->shadowHost->shared_from_this()->RemoveChild(sharedEl);
+            if (auto p = sharedEl->parent.lock()) {
+                p->RemoveChild(sharedEl);
+            } else if (auto sh = sharedEl->shadowHost.lock()) {
+                sh->RemoveChild(sharedEl);
             }
             if (g_hwnd) InvalidateRect(g_hwnd, NULL, FALSE);
             return Value::Undefined();

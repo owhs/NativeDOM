@@ -73,6 +73,9 @@ public:
     std::vector<ValuePtr> catchCallbacks;
     std::vector<ValuePtr> finallyCallbacks;
 
+    // Native pointer wrapper
+    std::weak_ptr<void> weakNative;
+
     // Control Signal
     ControlType controlType;
     ValuePtr signalValue;

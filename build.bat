@@ -48,7 +48,7 @@ echo %CYAN%%BOLD%===============================================================
 echo %CYAN%%BOLD%                           ENGINE BUILDER                                 %RESET%
 echo %CYAN%%BOLD%==========================================================================%RESET%
 echo.
-echo %MAGENTA%[1]%RESET% %WHITE%Optimized Release%RESET%  %DIM%(Fast, ~600KB, Minimized)%RESET%
+echo %MAGENTA%[1]%RESET% %WHITE%Optimized Release%RESET%  %DIM%(Fast, ~700KB, Minimized)%RESET%
 echo %MAGENTA%[2]%RESET% %WHITE%Standard Dev%RESET%       %DIM%(Defaults)%RESET%
 echo %MAGENTA%[3]%RESET% %WHITE%Debug%RESET%              %DIM%(Verbose logging + debug DB)%RESET%
 echo %MAGENTA%[4]%RESET% %WHITE%Back%RESET%

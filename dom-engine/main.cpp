@@ -437,7 +437,7 @@ ScrollbarHit findScrollbarAt(int mx, int my) {
                     return result;
                 }
             }
-            cur = cur->parent ? cur->parent : cur->shadowHost;
+            auto p_cur = cur->parent.lock(); auto sh_cur = cur->shadowHost.lock(); cur = p_cur ? p_cur.get() : sh_cur.get();
         }
     }
     return result;
@@ -720,14 +720,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 // Remove hover from old chain
                 if (hoveredElement) {
                     Element* c = hoveredElement;
-                    while (c) { c->isHovered = false; c = c->parent ? c->parent : c->shadowHost; }
+                    while (c) { c->isHovered = false; auto p = c->parent.lock(); auto sh = c->shadowHost.lock(); c = p ? p.get() : sh.get(); }
                     if (g_bridge) g_bridge->dispatchMouseEvent(hoveredElement, "mouseleave", mx, my);
                 }
                 hoveredElement = hit;
                 // Add hover to new chain
                 if (hoveredElement) {
                     Element* c = hoveredElement;
-                    while (c) { c->isHovered = true; c = c->parent ? c->parent : c->shadowHost; }
+                    while (c) { c->isHovered = true; auto p = c->parent.lock(); auto sh = c->shadowHost.lock(); c = p ? p.get() : sh.get(); }
                     if (g_bridge) g_bridge->dispatchMouseEvent(hoveredElement, "mouseenter", mx, my);
                 }
                 RequestRedraw(hwnd);
@@ -746,7 +746,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     if (c == "pointer" || !curr->Get("onClick").empty()) { cursorMode = "pointer"; break; }
                     if (c == "text") { cursorMode = "text"; break; }
                     if (c == "move") { cursorMode = "move"; break; }
-                    curr = curr->parent ? curr->parent : curr->shadowHost;
+                    auto p_curr = curr->parent.lock(); auto sh_curr = curr->shadowHost.lock(); curr = p_curr ? p_curr.get() : sh_curr.get();
                 }
             }
             if (cursorMode == "pointer") SetCursor(LoadCursor(NULL, IDC_HAND));
@@ -765,7 +765,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
             if (hoveredElement) {
                 Element* c = hoveredElement;
-                while (c) { c->isHovered = false; c = c->parent ? c->parent : c->shadowHost; }
+                while (c) { c->isHovered = false; auto p = c->parent.lock(); auto sh = c->shadowHost.lock(); c = p ? p.get() : sh.get(); }
                 if (g_bridge) g_bridge->dispatchMouseEvent(hoveredElement, "mouseleave", 0, 0);
                 hoveredElement = nullptr;
                 requiresRedraw = true;
@@ -813,7 +813,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             // Clear old focus
             if (focusedElement) {
                 Element* c = focusedElement;
-                while (c) { c->isFocused = false; c = c->parent ? c->parent : c->shadowHost; }
+                while (c) { c->isFocused = false; auto p = c->parent.lock(); auto sh = c->shadowHost.lock(); c = p ? p.get() : sh.get(); }
                 if (g_bridge) g_bridge->dispatchScriptEvent(focusedElement, "blur");
                 focusedElement = nullptr;
             }
@@ -825,7 +825,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 // Set new focus
                 focusedElement = hit;
                 Element* c = focusedElement;
-                while (c) { c->isFocused = true; c = c->parent ? c->parent : c->shadowHost; }
+                while (c) { c->isFocused = true; auto p = c->parent.lock(); auto sh = c->shadowHost.lock(); c = p ? p.get() : sh.get(); }
                 if (g_bridge) {
                     g_bridge->dispatchScriptEvent(focusedElement, "focus");
                     for (Element* h : hits) g_bridge->dispatchMouseEvent(h, "mousedown", mx, my);
@@ -843,7 +843,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                         SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
                         return 0;
                     }
-                    curr = curr->parent ? curr->parent : curr->shadowHost;
+                    auto p_curr = curr->parent.lock(); auto sh_curr = curr->shadowHost.lock(); curr = p_curr ? p_curr.get() : sh_curr.get();
                 }
             }
             RequestRedraw(hwnd);
@@ -880,7 +880,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             // Clear old active state on whatever element received mousedown
             if (activeElement) {
                 Element* c = activeElement;
-                while (c) { c->isActive = false; c = c->parent ? c->parent : c->shadowHost; }
+                while (c) { c->isActive = false; auto p = c->parent.lock(); auto sh = c->shadowHost.lock(); c = p ? p.get() : sh.get(); }
             }
 
             if (g_bridge) {
@@ -933,7 +933,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                             break;
                         }
                     }
-                    cur = cur->parent ? cur->parent : cur->shadowHost;
+                    auto p_cur = cur->parent.lock(); auto sh_cur = cur->shadowHost.lock(); cur = p_cur ? p_cur.get() : sh_cur.get();
                 }
                 if (scrolled) break;
             }
@@ -976,7 +976,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                             break;
                         }
                     }
-                    cur = cur->parent ? cur->parent : cur->shadowHost;
+                    auto p_cur = cur->parent.lock(); auto sh_cur = cur->shadowHost.lock(); cur = p_cur ? p_cur.get() : sh_cur.get();
                 }
                 if (scrolled) break;
             }
@@ -1006,7 +1006,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     if (g_interp) g_interp->exec(handler);
                     break;
                 }
-                curr = curr->parent ? curr->parent : curr->shadowHost;
+                auto p_curr = curr->parent.lock(); auto sh_curr = curr->shadowHost.lock(); curr = p_curr ? p_curr.get() : sh_curr.get();
             }
             RequestRedraw(hwnd);
             return 0;
@@ -1059,7 +1059,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                                 break;
                             }
                         }
-                        cur = cur->parent ? cur->parent : cur->shadowHost;
+                        auto p_cur = cur->parent.lock(); auto sh_cur = cur->shadowHost.lock(); cur = p_cur ? p_cur.get() : sh_cur.get();
                     }
                 }
             }

@@ -234,13 +234,16 @@ private:
             if (pseudo == "focused" && !el->isFocused) return false;
             if (pseudo == "active" && !el->isActive) return false;
             if (pseudo == "first-child") {
-                if (!el->parent || el->parent->children.empty() || el->parent->children[0].get() != el.get()) return false;
+                auto p = el->parent.lock();
+                if (!p || p->children.empty() || p->children[0].get() != el.get()) return false;
             }
             if (pseudo == "last-child") {
-                if (!el->parent || el->parent->children.empty() || el->parent->children.back().get() != el.get()) return false;
+                auto p = el->parent.lock();
+                if (!p || p->children.empty() || p->children.back().get() != el.get()) return false;
             }
             if (pseudo == "nth-child") {
-                if (!el->parent) return false;
+                auto p = el->parent.lock();
+                if (!p) return false;
                 char* nEnd;
                 int n = (int)strtol(seg.pseudoArg.c_str(), &nEnd, 10);
                 if (nEnd == seg.pseudoArg.c_str()) return false;
@@ -305,8 +308,8 @@ private:
                     }
                 } else if (nextSeg.combinator == '+') {
                     std::vector<std::shared_ptr<Element>> siblings;
-                    if (candidate->parent) siblings = candidate->parent->children;
-                    else if (candidate->shadowHost) siblings = candidate->shadowHost->shadowChildren;
+                    if (auto p = candidate->parent.lock()) siblings = p->children;
+                    else if (auto sh = candidate->shadowHost.lock()) siblings = sh->shadowChildren;
                     
                     for (size_t i = 0; i < siblings.size(); i++) {
                         if (siblings[i].get() == candidate.get() && i + 1 < siblings.size()) {
@@ -317,8 +320,8 @@ private:
                     }
                 } else if (nextSeg.combinator == '~') {
                     std::vector<std::shared_ptr<Element>> siblings;
-                    if (candidate->parent) siblings = candidate->parent->children;
-                    else if (candidate->shadowHost) siblings = candidate->shadowHost->shadowChildren;
+                    if (auto p = candidate->parent.lock()) siblings = p->children;
+                    else if (auto sh = candidate->shadowHost.lock()) siblings = sh->shadowChildren;
                     
                     bool foundSelf = false;
                     for (size_t i = 0; i < siblings.size(); i++) {
@@ -351,7 +354,7 @@ private:
     {
         if (!node) return;
         if (!includeRoot || true) { // Always collect, skip root check in matching
-            if (!includeRoot || node->parent || node->shadowHost) {  
+            if (!includeRoot || node->parent.lock() || node->shadowHost.lock()) {  
                 // skip the actual root itself for first segment matching
             }
             out.push_back(node);

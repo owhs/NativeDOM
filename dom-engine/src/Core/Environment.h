@@ -46,4 +46,8 @@ public:
         for (auto& kv : vars) result.push_back(kv.first);
         return result;
     }
+
+    void clear() {
+        vars.clear();
+    }
 };
